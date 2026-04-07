@@ -45,6 +45,8 @@ final class FleetViewModel: ObservableObject {
     // MARK: - Watching
 
     private var screenshotTimer: AnyCancellable?
+    private var focusTimer: AnyCancellable?
+    private var windowMap: [String: Int] = [:]  // session_id → CGWindowID
 
     func startWatching() {
         bridge.startWatching { }
@@ -53,10 +55,61 @@ final class FleetViewModel: ObservableObject {
             .sink { [weak self] state in self?.applyState(state) }
             .store(in: &cancellables)
 
-        // Capture screenshots every 4s using daemon's window_map.json for correct matching
+        // Background: capture all screenshots every 4s
         screenshotTimer = Timer.publish(every: 4, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.captureScreenshots() }
+
+        // Focus mode: capture focused session every 0.5s for near-realtime view
+        focusTimer = Timer.publish(every: 0.5, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in self?.captureFocusedScreenshot() }
+    }
+
+    /// Fast single-window capture for focused session only
+    private func captureFocusedScreenshot() {
+        guard let fid = focusedId, let session = focusedSession else { return }
+
+        DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+            guard let self else { return }
+
+            // Read window map if stale
+            let home = FileManager.default.homeDirectoryForCurrentUser
+            if self.windowMap.isEmpty {
+                let mapPath = home.appendingPathComponent(".claude-fleet/window_map.json")
+                if let data = try? Data(contentsOf: mapPath),
+                   let m = try? JSONSerialization.jsonObject(with: data) as? [String: Int] {
+                    DispatchQueue.main.async { self.windowMap = m }
+                    // Use local copy for this iteration
+                    guard let wid = m[session.sessionId] else { return }
+                    Self.captureWindow(windowId: wid, sessionId: session.sessionId)
+                    DispatchQueue.main.async { self.screenshotTick += 1 }
+                    return
+                }
+                return
+            }
+
+            guard let wid = self.windowMap[session.sessionId] else { return }
+            Self.captureWindow(windowId: wid, sessionId: session.sessionId)
+            DispatchQueue.main.async { self.screenshotTick += 1 }
+        }
+    }
+
+    /// Capture a single window and save as session screenshot
+    private static func captureWindow(windowId: Int, sessionId: String) {
+        let dir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".claude-fleet/screenshots")
+        guard let cgImage = CGWindowListCreateImage(
+            .null,
+            .optionIncludingWindow,
+            CGWindowID(windowId),
+            [.boundsIgnoreFraming, .bestResolution]
+        ) else { return }
+        let nsImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+        guard let tiffData = nsImage.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiffData),
+              let pngData = rep.representation(using: .png, properties: [:]) else { return }
+        try? pngData.write(to: dir.appendingPathComponent("\(sessionId).png"))
     }
 
     // MARK: - Actions
@@ -155,10 +208,11 @@ final class FleetViewModel: ObservableObject {
             let dir = home.appendingPathComponent(".claude-fleet/screenshots")
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-            // Read daemon's session→windowID mapping
+            // Read daemon's session→windowID mapping and cache it
             let mapPath = home.appendingPathComponent(".claude-fleet/window_map.json")
             guard let data = try? Data(contentsOf: mapPath),
                   let mapping = try? JSONSerialization.jsonObject(with: data) as? [String: Int] else { return }
+            DispatchQueue.main.async { self?.windowMap = mapping }
 
             var capturedImages: [Int: CGImage] = [:]
 
