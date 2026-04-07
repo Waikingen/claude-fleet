@@ -61,21 +61,30 @@ struct DetailSidebarView: View {
 struct SessionDetailView: View {
     let session: FleetSession
     @EnvironmentObject var vm: FleetViewModel
+    @State private var goalText: String = ""
+    @State private var isEditingGoal: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
-            FleetScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    sessionTitle
-                    if session.risk { riskBlock }
-                    taskSection
-                    if !session.suggestedAction.isEmpty { suggestedSection }
-                    confidenceSection
-                    terminalSection
-                    metaSection
-                }
-                .padding(20)
+            // Compact header
+            VStack(alignment: .leading, spacing: 12) {
+                sessionTitle
+                goalSection
+                if session.risk { riskBlock }
+                taskSection
+                if !session.suggestedAction.isEmpty { suggestedSection }
+                confidenceSection
+                metaSection
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
+
+            Divider().background(Color.white.opacity(0.06))
+
+            // Terminal takes ALL remaining space
+            terminalSection
+                .frame(maxHeight: .infinity)
 
             // Action footer
             if session.needsAttention {
@@ -139,6 +148,47 @@ struct SessionDetailView: View {
         }
     }
 
+    private var goalSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("PROJECT GOAL")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(.white.opacity(0.2))
+                    .tracking(1.2)
+                Spacer()
+                Button(isEditingGoal ? "Save" : "Edit") {
+                    if isEditingGoal {
+                        vm.setGoal(project: session.project, goal: goalText)
+                        isEditingGoal = false
+                    } else {
+                        goalText = session.goal
+                        isEditingGoal = true
+                    }
+                }
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(Color(hex: "#00d4ff").opacity(0.6))
+                .buttonStyle(.plain)
+            }
+
+            if isEditingGoal {
+                TextEditor(text: $goalText)
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.8))
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .frame(height: 60)
+                    .background(Color.black.opacity(0.3))
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#00d4ff").opacity(0.2), lineWidth: 1))
+                    .cornerRadius(6)
+            } else {
+                Text(session.goal.isEmpty ? "No goal set — click Edit to add one" : session.goal)
+                    .font(.system(size: 11))
+                    .foregroundColor(session.goal.isEmpty ? .white.opacity(0.2) : .white.opacity(0.5))
+                    .lineLimit(3)
+            }
+        }
+    }
+
     private var taskSection: some View {
         DetailSection(label: "Task") {
             Text(session.stateSummary)
@@ -149,16 +199,50 @@ struct SessionDetailView: View {
     }
 
     private var suggestedSection: some View {
-        DetailSection(label: "Suggested Action") {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(session.suggestedAction)
-                    .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.5))
-                if let prompt = session.suggestedPrompt {
-                    Text("→ \"\(prompt)\"")
-                        .font(.system(size: 10.5))
-                        .foregroundColor(.white.opacity(0.25))
+        VStack(alignment: .leading, spacing: 8) {
+            Text("SUGGESTED NEXT STEP")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundColor(.white.opacity(0.2))
+                .tracking(1.2)
+
+            // Why — the reasoning
+            Text(session.suggestedAction)
+                .font(.system(size: 12))
+                .foregroundColor(.white.opacity(0.55))
+                .lineSpacing(2)
+
+            // What — the exact command that will be sent
+            if let prompt = session.suggestedPrompt {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 5) {
+                        Text("WILL SEND")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(Color(hex: "#00d4ff").opacity(0.4))
+                            .tracking(1)
+                        Spacer()
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color(hex: "#00d4ff").opacity(0.3))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+
+                    Text(prompt)
+                        .font(.system(size: 11.5, weight: .medium, design: .monospaced))
+                        .foregroundColor(Color(hex: "#00d4ff").opacity(0.85))
+                        .lineSpacing(3)
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, 10)
+                        .textSelection(.enabled)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(hex: "#00d4ff").opacity(0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(hex: "#00d4ff").opacity(0.15), lineWidth: 1)
+                )
+                .cornerRadius(8)
             }
         }
     }
@@ -175,25 +259,47 @@ struct SessionDetailView: View {
     }
 
     private var terminalSection: some View {
-        DetailSection(label: "Terminal") {
-            let cleaned = session.cleanLastLines
-                .components(separatedBy: "\n")
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty && $0 != ">" && !$0.hasPrefix("─") }
-                .joined(separator: "\n")
-            FleetScrollView {
-                Text(cleaned.isEmpty ? "(no output)" : cleaned)
-                    .font(.system(size: 10.5, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.4))
-                    .lineSpacing(2.5)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+        let cleaned = session.cleanLastLines
+            .components(separatedBy: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && $0 != ">" }
+            .suffix(40)
+            .joined(separator: "\n")
+        return VStack(alignment: .leading, spacing: 0) {
+            // Terminal title bar
+            HStack(spacing: 6) {
+                Circle().fill(Color(hex: "#34d399").opacity(0.5)).frame(width: 5, height: 5)
+                Text("TERMINAL")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(.white.opacity(0.2))
+                    .tracking(1.2)
+                Spacer()
+                Text(session.project)
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.15))
             }
-            .frame(maxHeight: 400)
-            .background(Color.black.opacity(0.3))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.06), lineWidth: 1))
-            .cornerRadius(8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color(hex: "#0a0a12"))
+
+            // Terminal content
+            ScrollView(.vertical, showsIndicators: false) {
+                Text(cleaned.isEmpty ? "No output captured" : cleaned)
+                    .font(.system(size: 11, weight: .regular, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.65))
+                    .lineSpacing(3)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+            }
+            .background(Color(hex: "#06060c"))
         }
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+        )
+        .cornerRadius(6)
     }
 
     private var metaSection: some View {
@@ -202,7 +308,47 @@ struct SessionDetailView: View {
                 MetaRow(key: "branch", value: session.branch)
                 MetaRow(key: "path",   value: session.path)
                 MetaRow(key: "status", value: session.status)
-                MetaRow(key: "progress", value: session.progressLabel)
+                if !session.progressLabel.isEmpty {
+                    MetaRow(key: "progress", value: session.progressLabel)
+                }
+                // Preview URL (portless — project.localhost:1355)
+                HStack(spacing: 4) {
+                    Text("preview")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.25))
+                        .frame(width: 60, alignment: .leading)
+                    Button(action: {
+                        if let url = URL(string: session.portlessURL) {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }) {
+                        Text(session.portlessURL)
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(Color(hex: "#00d4ff").opacity(0.7))
+                            .underline()
+                            .lineLimit(1)
+                    }
+                    .buttonStyle(.plain)
+                }
+                // Portless dashboard
+                HStack(spacing: 4) {
+                    Text("ports")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.25))
+                        .frame(width: 60, alignment: .leading)
+                    Button(action: {
+                        if let url = URL(string: "http://localhost:1355") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }) {
+                        Text("localhost:1355")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(Color(hex: "#00d4ff").opacity(0.5))
+                            .underline()
+                            .lineLimit(1)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }

@@ -142,41 +142,22 @@ struct SessionCardView: View {
     // MARK: - Preview
 
     private var previewText: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            // Terminal snippet — last 3 non-empty lines
-            let lines = session.cleanLastLines
-                .components(separatedBy: "\n")
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
-            let snippet = lines.suffix(3).joined(separator: "\n")
-
-            if !snippet.isEmpty {
-                Text(snippet)
-                    .font(.system(size: 10.5, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.38))
-                    .lineLimit(3)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.black.opacity(0.25))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(
-                                session.risk
-                                    ? Color(hex: "#ff5032").opacity(0.2)
-                                    : Color.white.opacity(0.06),
-                                lineWidth: 1
-                            )
-                    )
-                    .cornerRadius(6)
-            }
-
-            // State summary
+        VStack(alignment: .leading, spacing: 8) {
+            // State summary — what's happening right now
             Text(session.stateSummary)
-                .font(.system(size: 12))
-                .foregroundColor(.white.opacity(0.55))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.white.opacity(0.65))
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Suggested action — what Fleet thinks should happen next
+            if !session.suggestedAction.isEmpty && session.needsAttention {
+                Text(session.suggestedAction)
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(hex: "#00d4ff").opacity(0.55))
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
@@ -184,14 +165,6 @@ struct SessionCardView: View {
 
     private var actionRow: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Suggested action text
-            if !session.suggestedAction.isEmpty {
-                Text(session.suggestedAction)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.6))
-                    .lineLimit(2)
-            }
-
             HStack(spacing: 8) {
                 // Continue button
                 Button(action: {

@@ -215,8 +215,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         panel?.titlebarAppearsTransparent = true
         panel?.backgroundColor = .clear
         panel?.isOpaque = false
+        panel?.level = .floating
         panel?.isMovableByWindowBackground = true
         panel?.center()
         panel?.setFrameAutosaveName("ClaudeFleetPanel")
+        panel?.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
     }
 }

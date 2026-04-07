@@ -68,6 +68,10 @@ struct FleetSession: Identifiable, Codable {
         return "\(progress)%"
     }
 
+    var portlessURL: String {
+        "http://\(project).localhost:1355"
+    }
+
     var cleanLastLines: String {
         let ansi = try? NSRegularExpression(pattern: #"\x1B\[[0-9;]*[mGKHF]|\x1B\[[\?][0-9;]*[hl]|\x1B[>=]|\r"#)
         let stripped = ansi?.stringByReplacingMatches(

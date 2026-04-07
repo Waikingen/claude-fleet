@@ -66,7 +66,7 @@ struct MainWindowView: View {
                     // Detail sidebar
                     DetailSidebarView()
                         .environmentObject(vm)
-                        .frame(width: 320)
+                        .frame(width: 440)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
