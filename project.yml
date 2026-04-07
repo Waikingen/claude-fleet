@@ -1,0 +1,26 @@
+name: ClaudeFleet
+options:
+  bundleIdPrefix: com.wiking
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "15"
+
+targets:
+  ClaudeFleet:
+    type: application
+    platform: macOS
+    sources:
+      - ClaudeFleet/
+    settings:
+      base:
+        PRODUCT_NAME: ClaudeFleet
+        PRODUCT_BUNDLE_IDENTIFIER: com.wiking.claude-fleet
+        INFOPLIST_FILE: ClaudeFleet/Resources/Info.plist
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        SWIFT_VERSION: "5.9"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_HARDENED_RUNTIME: YES
+        COMBINE_HIDPI_IMAGES: YES
