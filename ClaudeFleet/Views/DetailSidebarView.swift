@@ -289,17 +289,16 @@ struct SessionDetailView: View {
             // Read raw data to bypass NSImage file cache
             if let data = try? Data(contentsOf: URL(fileURLWithPath: ssPath)),
                let nsImage = NSImage(data: data) {
-                GeometryReader { geo in
+                ScrollView(.vertical, showsIndicators: false) {
                     Image(nsImage: nsImage)
                         .resizable()
-                        .scaledToFill()
-                        .frame(width: geo.size.width, height: geo.size.height)
-                        .clipped()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
                 .id("sidebar-ss-\(session.sessionId)-\(tick)")
                 .transition(.opacity)
                 .animation(.easeInOut(duration: 0.3), value: tick)
-                .background(Color.black)
+                .background(Color(hex: "#06060c"))
             }
         } else {
             let cleaned = session.cleanLastLines
