@@ -1,21 +1,31 @@
 import SwiftUI
 
-// MARK: - Dot grid background
-
+// MARK: - Dot grid background (kept for compat)
 struct DotGridBackground: View {
+    var body: some View { LineGridBackground() }
+}
+
+// MARK: - Line grid background (matches HTML prototype)
+struct LineGridBackground: View {
     var body: some View {
         Canvas { context, size in
-            let spacing: CGFloat = 26
-            let r: CGFloat = 1.0
-            for xi in stride(from: CGFloat(0), through: size.width, by: spacing) {
-                for yi in stride(from: CGFloat(0), through: size.height, by: spacing) {
-                    context.opacity = 0.09
-                    context.fill(
-                        Path(ellipseIn: CGRect(x: xi - r, y: yi - r, width: r * 2, height: r * 2)),
-                        with: .color(.white)
-                    )
-                }
+            let spacing: CGFloat = 28
+            var p = Path()
+            // Vertical lines
+            var x: CGFloat = 0
+            while x <= size.width {
+                p.move(to: CGPoint(x: x, y: 0))
+                p.addLine(to: CGPoint(x: x, y: size.height))
+                x += spacing
             }
+            // Horizontal lines
+            var y: CGFloat = 0
+            while y <= size.height {
+                p.move(to: CGPoint(x: 0, y: y))
+                p.addLine(to: CGPoint(x: size.width, y: y))
+                y += spacing
+            }
+            context.stroke(p, with: .color(Color(hex: "#00d4ff").opacity(0.08)), lineWidth: 0.5)
         }
         .allowsHitTesting(false)
     }
@@ -35,9 +45,9 @@ struct ScanBeamView: View {
                         LinearGradient(
                             stops: [
                                 .init(color: .clear, location: 0),
-                                .init(color: Color(hex: "#00d4ff").opacity(0.08), location: 0.3),
-                                .init(color: Color(hex: "#00d4ff").opacity(0.30), location: 0.5),
-                                .init(color: Color(hex: "#00d4ff").opacity(0.08), location: 0.7),
+                                .init(color: Color(hex: "#00d4ff").opacity(0.12), location: 0.3),
+                                .init(color: Color(hex: "#00d4ff").opacity(0.40), location: 0.5),
+                                .init(color: Color(hex: "#00d4ff").opacity(0.12), location: 0.7),
                                 .init(color: .clear, location: 1.0),
                             ],
                             startPoint: .top,
@@ -100,22 +110,33 @@ struct HUDCorners: View {
     }
 }
 
-// MARK: - Animated pending border (pulsing cyan on cards awaiting review)
+// MARK: - Animated pending border (chasing gradient — matches HTML border-chase)
 
 struct PendingBorderModifier: ViewModifier {
-    @State private var pulse = false
     let cornerRadius: CGFloat
+    @State private var phase: CGFloat = 0
 
     func body(content: Content) -> some View {
         content.overlay(
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .stroke(
-                    Color(hex: "#00d4ff").opacity(pulse ? 0.65 : 0.18),
-                    lineWidth: pulse ? 1.5 : 0.8
-                )
-                .animation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true), value: pulse)
+            TimelineView(.animation) { timeline in
+                let t = timeline.date.timeIntervalSinceReferenceDate
+                let p = CGFloat(t.truncatingRemainder(dividingBy: 2.0) / 2.0)
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(lineWidth: 1)
+                    .foregroundStyle(
+                        AngularGradient(
+                            stops: [
+                                .init(color: Color(hex: "#00d4ff").opacity(0.0),  location: max(0, p - 0.15)),
+                                .init(color: Color(hex: "#00d4ff").opacity(0.7),  location: p),
+                                .init(color: Color(hex: "#00d4ff").opacity(0.0),  location: min(1, p + 0.15)),
+                            ],
+                            center: .center,
+                            startAngle: .degrees(0),
+                            endAngle: .degrees(360)
+                        )
+                    )
+            }
         )
-        .onAppear { pulse = true }
     }
 }
 

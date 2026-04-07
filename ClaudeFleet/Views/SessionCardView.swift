@@ -8,7 +8,7 @@ struct SessionCardView: View {
     @State private var showRolePicker = false
 
     var isSelected: Bool { vm.selectedId == session.id }
-    var isActive: Bool { !session.needsReview }
+    var isActive: Bool { session.isWorking }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -16,7 +16,7 @@ struct SessionCardView: View {
             Spacer().frame(height: 10)
             previewText
             Spacer().frame(height: 12)
-            if !isActive {
+            if session.needsAttention {
                 actionRow
             } else {
                 activeIndicator
@@ -31,11 +31,11 @@ struct SessionCardView: View {
         .scaleEffect(isHovered ? 1.005 : 1.0)
         .animation(.spring(response: 0.2), value: isHovered)
         .animation(.spring(response: 0.2), value: isSelected)
-        .ifCondition(!isActive && actionFlash == nil) { $0.pendingBorder() }
+        .ifCondition(session.needsAttention && actionFlash == nil) { $0.pendingBorder() }
         .onTapGesture { vm.selectSession(session.id) }
         .onHover { isHovered = $0 }
         .overlay(flashOverlay)
-        .overlay(!isActive ? AnyView(HUDCorners(size: 10, thickness: 1.0, color: Color(hex: "#00d4ff").opacity(0.35))) : AnyView(EmptyView()))
+        .overlay(session.needsAttention ? AnyView(HUDCorners(size: 10, thickness: 1.0, color: Color(hex: "#00d4ff").opacity(0.35))) : AnyView(EmptyView()))
     }
 
     // MARK: - Header
@@ -52,7 +52,7 @@ struct SessionCardView: View {
                     )
                     .frame(width: 32, height: 32)
 
-                if isActive {
+                if session.isWorking {
                     Image(systemName: "arrow.trianglehead.2.clockwise")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(Color(hex: "#34d399"))
@@ -61,7 +61,7 @@ struct SessionCardView: View {
                         .font(.system(size: 12))
                         .foregroundColor(Color(hex: "#ff6040"))
                 } else {
-                    Text(String(session.displayRepo.prefix(1)).uppercased())
+                    Text(String(session.project.prefix(1)).uppercased())
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(Color(hex: "#00d4ff"))
                 }
@@ -69,9 +69,9 @@ struct SessionCardView: View {
 
             // Title + meta
             VStack(alignment: .leading, spacing: 2) {
-                // Repo · branch
+                // Project · branch
                 HStack(spacing: 4) {
-                    Text(session.displayRepo)
+                    Text(session.project)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.white)
                     if !session.displayBranch.isEmpty {
@@ -103,10 +103,10 @@ struct SessionCardView: View {
                         .font(.system(size: 11))
                         .foregroundColor(.white.opacity(0.35))
 
-                    if !session.elapsedLabel.isEmpty {
+                    if !session.progressLabel.isEmpty {
                         Text("·")
                             .foregroundColor(.white.opacity(0.2))
-                        Text(session.elapsedLabel)
+                        Text(session.progressLabel)
                             .font(.system(size: 11))
                             .foregroundColor(.white.opacity(0.3))
                     }
@@ -170,8 +170,8 @@ struct SessionCardView: View {
                     .cornerRadius(6)
             }
 
-            // Question being asked
-            Text(session.waitingFor)
+            // State summary
+            Text(session.stateSummary)
                 .font(.system(size: 12))
                 .foregroundColor(.white.opacity(0.55))
                 .lineLimit(2)
@@ -179,57 +179,71 @@ struct SessionCardView: View {
         }
     }
 
-    // MARK: - Action row
+    // MARK: - Action row (for needsAttention sessions: idle or paused)
 
     private var actionRow: some View {
-        HStack(spacing: 8) {
-            Button(action: {
-                withAnimation(.spring(response: 0.25)) {
-                    actionFlash = .approve
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    actionFlash = nil
-                    vm.approve(session)
-                }
-            }) {
-                Label("Approve", systemImage: "checkmark")
-                    .font(.system(size: 12, weight: .semibold))
-                    .frame(maxWidth: .infinity)
+        VStack(alignment: .leading, spacing: 8) {
+            // Suggested action text
+            if !session.suggestedAction.isEmpty {
+                Text(session.suggestedAction)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.6))
+                    .lineLimit(2)
             }
-            .buttonStyle(ApproveButtonStyle())
 
-            Button(action: {
-                withAnimation(.spring(response: 0.25)) {
-                    actionFlash = .deny
+            HStack(spacing: 8) {
+                // Continue button
+                Button(action: {
+                    withAnimation(.spring(response: 0.25)) {
+                        actionFlash = .approve
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        actionFlash = nil
+                        vm.continueSession(session)
+                    }
+                }) {
+                    Label("Continue", systemImage: "arrow.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .frame(maxWidth: .infinity)
                 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    actionFlash = nil
-                    vm.deny(session)
-                }
-            }) {
-                Label("Deny", systemImage: "xmark")
-                    .font(.system(size: 12, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(DenyButtonStyle())
+                .buttonStyle(ApproveButtonStyle())
 
-            // Jump to session
-            Button(action: { /* open iTerm2 window — future */ }) {
-                Image(systemName: "arrow.up.right.square")
-                    .font(.system(size: 13))
+                // Deny button — only for paused sessions
+                if session.isPaused {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.25)) {
+                            actionFlash = .deny
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            actionFlash = nil
+                            vm.deny(session)
+                        }
+                    }) {
+                        Label("Deny", systemImage: "xmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(DenyButtonStyle())
+                }
+
+                // Jump to session
+                Button(action: { /* open iTerm2 window — future */ }) {
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.system(size: 13))
+                }
+                .buttonStyle(IconButtonStyle())
             }
-            .buttonStyle(IconButtonStyle())
         }
     }
 
     @ViewBuilder
     private var activeIndicator: some View {
-        if session.isQA {
+        if session.isDone {
             HStack(spacing: 5) {
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 10))
                     .foregroundColor(Color(hex: "#34d399"))
-                Text("Ready for QA")
+                Text("Done — ready for next task")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(Color(hex: "#34d399").opacity(0.9))
             }
@@ -238,34 +252,16 @@ struct SessionCardView: View {
             .background(Color(hex: "#34d399").opacity(0.08))
             .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#34d399").opacity(0.2), lineWidth: 1))
             .cornerRadius(6)
-        } else if session.isPending {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 5) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(Color(hex: "#fbbf24"))
-                    Text("Decision needed")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color(hex: "#fbbf24").opacity(0.9))
-                }
-                if let d = session.decision {
-                    Text(d)
-                        .font(.system(size: 10.5))
-                        .foregroundColor(.white.opacity(0.4))
-                        .lineLimit(2)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(Color(hex: "#fbbf24").opacity(0.06))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#fbbf24").opacity(0.2), lineWidth: 1))
-            .cornerRadius(6)
         } else if let sent = session.autoSent, sent != "running" && sent != "idle" {
             Text("Auto: \(sent)")
                 .font(.system(size: 11))
                 .foregroundColor(.white.opacity(0.2))
+        } else if session.isWorking {
+            Text(session.stateSummary.isEmpty ? "Working…" : session.stateSummary)
+                .font(.system(size: 11))
+                .foregroundColor(.white.opacity(0.2))
         } else {
-            Text("Running — watching…")
+            Text(session.stateSummary.isEmpty ? "Watching…" : session.stateSummary)
                 .font(.system(size: 11))
                 .foregroundColor(.white.opacity(0.2))
         }
@@ -327,36 +323,37 @@ struct SessionCardView: View {
     }
 
     private var avatarBg: Color {
-        if session.isQA      { return Color(hex: "#34d399").opacity(0.12) }
-        if session.isPending { return Color(hex: "#fbbf24").opacity(0.1) }
-        if session.isRunning { return Color(hex: "#34d399").opacity(0.08) }
+        if session.isDone    { return Color(hex: "#34d399").opacity(0.12) }
+        if session.isWorking { return Color(hex: "#34d399").opacity(0.08) }
+        if session.isHigh    { return Color(hex: "#ff6040").opacity(0.1) }
         if session.risk      { return Color(hex: "#ff6040").opacity(0.1) }
         return Color(hex: "#00d4ff").opacity(0.1)
     }
 
     private var avatarBorder: Color {
-        if session.isQA      { return Color(hex: "#34d399").opacity(0.3) }
-        if session.isPending { return Color(hex: "#fbbf24").opacity(0.25) }
-        if session.isRunning { return Color(hex: "#34d399").opacity(0.15) }
+        if session.isDone    { return Color(hex: "#34d399").opacity(0.3) }
+        if session.isWorking { return Color(hex: "#34d399").opacity(0.15) }
+        if session.isHigh    { return Color(hex: "#ff6040").opacity(0.25) }
         if session.risk      { return Color(hex: "#ff6040").opacity(0.25) }
         return Color(hex: "#00d4ff").opacity(0.2)
     }
 
     private var statusDotColor: Color {
-        if session.isQA      { return Color(hex: "#34d399") }
-        if session.isPending { return Color(hex: "#fbbf24") }
-        if session.isRunning { return Color(hex: "#34d399").opacity(0.5) }
-        if session.risk      { return Color(hex: "#ff6040") }
+        if session.isHigh    { return Color(hex: "#ff6040") }
+        if session.isDone    { return Color(hex: "#34d399") }
+        if session.isWorking { return Color(hex: "#34d399") }
+        if session.isPaused  { return Color(hex: "#00d4ff") }
         return Color(hex: "#00d4ff")
     }
 
     private var statusLabel: String {
-        if session.isQA      { return "qa ready" }
-        if session.isPending { return "pending" }
-        if session.isRunning { return "running" }
-        if session.isIdle    { return "idle" }
-        if session.risk      { return "risky" }
-        return "waiting"
+        switch session.status {
+        case "idle":    return "idle — needs instruction"
+        case "paused":  return "paused — waiting for input"
+        case "working": return "working"
+        case "done":    return "done — ready for next task"
+        default:        return session.status
+        }
     }
 }
 

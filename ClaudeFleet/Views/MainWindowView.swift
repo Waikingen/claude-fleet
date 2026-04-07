@@ -49,17 +49,13 @@ struct MainWindowView: View {
                 HStack(spacing: 0) {
                     // Main content
                     ZStack {
-                        DotGridBackground()
-                        ScrollView {
+                        LineGridBackground()
+                        FleetScrollView {
                             SessionsGridView()
                                 .environmentObject(vm)
                                 .padding(20)
                         }
-                        if vm.isScanning {
-                            ScanBeamView()
-                                .transition(.opacity)
-                                .animation(.easeInOut(duration: 0.3), value: vm.isScanning)
-                        }
+                        ScanBeamView()
                     }
                     .frame(maxWidth: .infinity)
                     .clipped()

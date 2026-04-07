@@ -39,9 +39,9 @@ struct TopBarView: View {
                     .fill(Color(hex: "#00d4ff"))
                     .frame(width: 5, height: 5)
                     .shadow(color: Color(hex: "#00d4ff").opacity(0.7), radius: 3)
-                    .opacity(vm.pendingCount > 0 ? 1 : 0.4)
+                    .opacity(vm.attentionCount > 0 ? 1 : 0.4)
 
-                Text("\(vm.pendingCount)")
+                Text("\(vm.attentionCount)")
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
                     .foregroundColor(Color(hex: "#00d4ff"))
                 Text("waiting")

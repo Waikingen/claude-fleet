@@ -13,30 +13,30 @@ final class FleetViewModel: ObservableObject {
     @Published var mode:          FleetMode = .scout
     @Published var phase:         String = "idle"
     @Published var isScanning:    Bool = false
-    @Published var pendingCount:  Int = 0
     @Published var totalCount:    Int = 0
+    @Published var idleCount:     Int = 0
+    @Published var workingCount:  Int = 0
+    @Published var attentionCount: Int = 0
     @Published var toast:         ToastMessage? = nil
     @Published var lastScanDate:  Date? = nil
-    @Published var errorMessage:  String? = nil
     @Published var globalRole:    String = "builder"
 
     // MARK: - Derived
 
-    var pendingSessions: [FleetSession] { sessions.filter { $0.needsReview } }
-    var activeSessions:  [FleetSession] { sessions.filter { !$0.needsReview } }
-    var selectedSession: FleetSession?  { sessions.first { $0.id == selectedId } }
+    var attentionSessions: [FleetSession] { sessions.filter { $0.needsAttention } }
+    var workingSessions:   [FleetSession] { sessions.filter { $0.isWorking } }
+    var selectedSession:   FleetSession?  { sessions.first { $0.id == selectedId } }
 
     // MARK: - Private
 
     private let bridge = FleetBridge.shared
     private var cancellables = Set<AnyCancellable>()
-    private var knownPendingIds = Set<String>()
+    private var knownAttentionIds = Set<String>()
 
     // MARK: - Init
 
     init() {
-        let saved = bridge.loadState()
-        applyState(saved)
+        applyState(bridge.loadState())
     }
 
     // MARK: - Watching
@@ -45,9 +45,7 @@ final class FleetViewModel: ObservableObject {
         bridge.startWatching { }
         bridge.stateChanges
             .receive(on: RunLoop.main)
-            .sink { [weak self] state in
-                self?.applyState(state)
-            }
+            .sink { [weak self] state in self?.applyState(state) }
             .store(in: &cancellables)
     }
 
@@ -56,49 +54,53 @@ final class FleetViewModel: ObservableObject {
     func scan() {
         guard !isScanning else { return }
         isScanning = true
-        errorMessage = nil
         FleetSocket.shared.scan()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.isScanning = false
         }
     }
 
-    func approve(_ session: FleetSession) {
-        let response = session.recommended ?? session.options.first ?? "y"
-        FleetSocket.shared.approve(sessionId: session.sessionId, response: response) { [weak self] ok in
+    func continueSession(_ session: FleetSession, customPrompt: String? = nil) {
+        let prompt = customPrompt ?? session.suggestedPrompt
+        guard let prompt else {
+            showToast("No suggested action for this session", isError: true)
+            return
+        }
+        FleetSocket.shared.continueSession(sessionId: session.sessionId, prompt: prompt) { [weak self] ok in
             if ok {
-                self?.showToast("✓ Approved: \(session.displayFile)")
-                self?.removePending(session.id)
+                self?.showToast("→ Sent: \(prompt.prefix(50))")
             } else {
-                self?.showToast("Daemon not running — start fleet daemon", isError: true)
+                self?.showToast("Daemon not running", isError: true)
             }
+        }
+    }
+
+    func approve(_ session: FleetSession) {
+        let response = session.suggestedPrompt ?? "y"
+        FleetSocket.shared.approve(sessionId: session.sessionId, response: response) { [weak self] ok in
+            if ok { self?.showToast("✓ Approved: \(session.displayFile)") }
         }
     }
 
     func deny(_ session: FleetSession) {
-        let response = session.options.last ?? "n"
-        FleetSocket.shared.deny(sessionId: session.sessionId, response: response) { [weak self] ok in
-            if ok {
-                self?.showToast("✕ Denied: \(session.displayFile)", isError: true)
-                self?.removePending(session.id)
-            }
+        FleetSocket.shared.deny(sessionId: session.sessionId, response: "n") { [weak self] ok in
+            if ok { self?.showToast("✕ Denied: \(session.displayFile)", isError: true) }
         }
     }
 
     func approveAllSafe() {
-        let safe = pendingSessions.filter { !$0.risk && !$0.blocked }
-        for session in safe {
-            approve(session)
-        }
+        let safe = attentionSessions.filter { !$0.risk }
+        for session in safe { continueSession(session) }
         if safe.isEmpty {
-            showToast("No safe sessions to approve")
+            showToast("No sessions need attention")
         } else {
-            showToast("✓ Approved \(safe.count) safe session\(safe.count == 1 ? "" : "s")")
+            showToast("→ Continued \(safe.count) session\(safe.count == 1 ? "" : "s")")
         }
     }
 
     func setMode(_ newMode: FleetMode) {
         mode = newMode
+        FleetSocket.shared.setMode(newMode.rawValue)
         showToast(newMode.description)
     }
 
@@ -115,32 +117,44 @@ final class FleetViewModel: ObservableObject {
         FleetSocket.shared.setRole(role: role)
     }
 
+    func setGoal(project: String, goal: String) {
+        FleetSocket.shared.setGoal(project: project, goal: goal)
+        showToast("Goal set for \(project)")
+    }
+
     func selectSession(_ id: String?) {
         selectedId = id
     }
 
-    // MARK: - Private helpers
+    // MARK: - Private
 
     private func applyState(_ state: FleetState) {
-        sessions     = state.sessions
-        phase        = state.phase
-        pendingCount = state.needsReview
-        totalCount   = state.totalSessions
+        sessions       = state.sessions
+        phase          = state.phase
+        totalCount     = state.totalSessions
+        idleCount      = state.idleCount
+        workingCount   = state.workingCount
+        attentionCount = state.needsAttention
 
         if let modeVal = FleetMode(rawValue: state.mode) {
             mode = modeVal
         }
         if state.phase == "done" {
             lastScanDate = Date()
+            isScanning = false
+        } else if state.phase == "analyzing" {
+            isScanning = true
+        }
+        // Don't show scan animation for routine "scanning" phase (every 5s sweep)
+
+        // Notify for new attention-needed sessions
+        let newAttention = sessions.filter { $0.needsAttention && !knownAttentionIds.contains($0.id) }
+        knownAttentionIds = Set(sessions.filter { $0.needsAttention }.map { $0.id })
+        for session in newAttention {
+            notifySession(session)
         }
 
-        // Notify for newly paused sessions
-        let newPending = sessions.filter { $0.needsReview && !knownPendingIds.contains($0.id) }
-        knownPendingIds = Set(sessions.filter { $0.needsReview }.map { $0.id })
-        for session in newPending {
-            notifyPaused(session: session)
-        }
-        // Load current global role from roles.json
+        // Sync global role
         let rolesURL = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude-fleet/roles.json")
         if let data = try? Data(contentsOf: rolesURL),
@@ -150,29 +164,20 @@ final class FleetViewModel: ObservableObject {
         }
     }
 
-    private func removePending(_ id: String) {
-        sessions.removeAll { $0.id == id }
-        pendingCount = sessions.filter { $0.needsReview }.count
-        if selectedId == id {
-            selectedId = nil
-        }
-    }
-
     private func showToast(_ text: String, isError: Bool = false) {
         toast = ToastMessage(text: text, isError: isError)
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
-            if self?.toast?.text == text {
-                self?.toast = nil
-            }
+            if self?.toast?.text == text { self?.toast = nil }
         }
     }
 
-    private func notifyPaused(session: FleetSession) {
+    private func notifySession(_ session: FleetSession) {
         let content = UNMutableNotificationContent()
         content.title = "Fleet: \(session.project)"
-        content.body = session.waitingFor.isEmpty ? "Waiting for input" : session.waitingFor
+        content.body = session.stateSummary.isEmpty ? "Needs attention" : session.stateSummary
         content.sound = .default
-        let request = UNNotificationRequest(identifier: session.sessionId, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request)
+        UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: session.sessionId, content: content, trigger: nil)
+        )
     }
 }

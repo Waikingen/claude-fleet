@@ -26,41 +26,46 @@ enum FleetMode: String, CaseIterable, Codable, Identifiable {
 // MARK: - Session
 
 struct FleetSession: Identifiable, Codable {
-    let sessionId:   String
-    let title:       String?
-    let project:     String
-    let repo:        String
-    let branch:      String
-    let path:        String
-    let lastLines:   String
-    let action:      String    // "respond" | "continue" | "qa" | "pending"
-    let waitingFor:  String
-    let options:     [String]
-    let recommended: String?
-    let confidence:  Double
-    let risk:        Bool
-    let riskReason:  String?
-    let decision:    String?
-    let blocked:     Bool
-    let autoSent:    String?
-    let tsPaused:    String?
-    let role:        String
+    let sessionId:       String
+    let title:           String?
+    let project:         String
+    let branch:          String
+    let path:            String
+    let lastLines:       String
+    let role:            String
+    let goal:            String
+    // v3: new analysis fields
+    let status:          String    // "idle" | "paused" | "working" | "done"
+    let stateSummary:    String
+    let progress:        Int
+    let suggestedAction: String
+    let suggestedPrompt: String?
+    let confidence:      Double
+    let risk:            Bool
+    let riskReason:      String?
+    let urgency:         String    // "high" | "medium" | "low"
+    let autoSent:        String?
 
     var id: String { sessionId }
 
-    // Derived — what state is this session in?
-    var needsReview: Bool { action == "respond" && autoSent == nil }
-    var isQA:        Bool { action == "qa" }
-    var isPending:   Bool { action == "pending" }
-    var isRunning:   Bool { action == "continue" || autoSent == "running" }
-    var isIdle:      Bool { autoSent == "idle" }
+    // Derived
+    var needsAttention: Bool { (status == "idle" || status == "paused") && autoSent == nil }
+    var isIdle:    Bool { status == "idle" }
+    var isPaused:  Bool { status == "paused" }
+    var isWorking: Bool { status == "working" }
+    var isDone:    Bool { status == "done" }
+    var isHigh:    Bool { urgency == "high" }
 
-    var displayRepo:   String { repo.isEmpty ? project : repo }
     var displayBranch: String { branch.isEmpty ? "" : branch }
     var displayTitle:  String { title ?? "" }
     var displayFile:   String {
         if let t = title, !t.isEmpty { return t }
         return URL(fileURLWithPath: path).lastPathComponent
+    }
+
+    var progressLabel: String {
+        if progress < 0 { return "" }
+        return "\(progress)%"
     }
 
     var cleanLastLines: String {
@@ -73,114 +78,70 @@ struct FleetSession: Identifiable, Codable {
         return stripped
     }
 
-    var elapsedLabel: String {
-        guard let ts = tsPaused,
-              let date = ISO8601DateFormatter().date(from: ts) else { return "" }
-        let secs = Int(-date.timeIntervalSinceNow)
-        if secs < 60   { return "\(secs)s ago" }
-        if secs < 3600 { return "\(secs / 60)m ago" }
-        return "\(secs / 3600)h ago"
-    }
-
-    // MARK: - Codable (custom to handle backward compat + optional action field)
+    // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case sessionId  = "session_id"
-        case title, project, repo, branch, path
-        case lastLines  = "last_lines"
-        case action
-        case waitingFor = "waiting_for"
-        case options, recommended, confidence, risk
-        case riskReason = "risk_reason"
-        case decision
-        case blocked
-        case autoSent   = "auto_sent"
-        case tsPaused   = "ts_paused"
-        case role
+        case sessionId       = "session_id"
+        case title, project, branch, path
+        case lastLines       = "last_lines"
+        case role, goal, status
+        case stateSummary    = "state_summary"
+        case progress
+        case suggestedAction = "suggested_action"
+        case suggestedPrompt = "suggested_prompt"
+        case confidence, risk
+        case riskReason      = "risk_reason"
+        case urgency
+        case autoSent        = "auto_sent"
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        sessionId   = try c.decode(String.self, forKey: .sessionId)
-        title       = try? c.decode(String.self, forKey: .title)
-        project     = (try? c.decode(String.self, forKey: .project)) ?? ""
-        repo        = (try? c.decode(String.self, forKey: .repo)) ?? ""
-        branch      = (try? c.decode(String.self, forKey: .branch)) ?? ""
-        path        = (try? c.decode(String.self, forKey: .path)) ?? ""
-        lastLines   = (try? c.decode(String.self, forKey: .lastLines)) ?? ""
-        waitingFor  = (try? c.decode(String.self, forKey: .waitingFor)) ?? ""
-        options     = (try? c.decode([String].self, forKey: .options)) ?? []
-        recommended = try? c.decode(String.self, forKey: .recommended)
-        confidence  = (try? c.decode(Double.self, forKey: .confidence)) ?? 0
-        risk        = (try? c.decode(Bool.self, forKey: .risk)) ?? false
-        riskReason  = try? c.decode(String.self, forKey: .riskReason)
-        decision    = try? c.decode(String.self, forKey: .decision)
-        blocked     = (try? c.decode(Bool.self, forKey: .blocked)) ?? false
-        autoSent    = try? c.decode(String.self, forKey: .autoSent)
-        tsPaused    = try? c.decode(String.self, forKey: .tsPaused)
-        role        = (try? c.decode(String.self, forKey: .role)) ?? "builder"
-
-        // Backward compat: derive action from autoSent if field absent
-        if let a = try? c.decode(String.self, forKey: .action), !a.isEmpty {
-            action = a
-        } else {
-            switch autoSent {
-            case nil:       action = "respond"
-            case "qa":      action = "qa"
-            case "pending": action = "pending"
-            default:        action = "continue"
-            }
-        }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(sessionId,   forKey: .sessionId)
-        try c.encodeIfPresent(title,       forKey: .title)
-        try c.encode(project,     forKey: .project)
-        try c.encode(repo,        forKey: .repo)
-        try c.encode(branch,      forKey: .branch)
-        try c.encode(path,        forKey: .path)
-        try c.encode(lastLines,   forKey: .lastLines)
-        try c.encode(action,      forKey: .action)
-        try c.encode(waitingFor,  forKey: .waitingFor)
-        try c.encode(options,     forKey: .options)
-        try c.encodeIfPresent(recommended, forKey: .recommended)
-        try c.encode(confidence,  forKey: .confidence)
-        try c.encode(risk,        forKey: .risk)
-        try c.encodeIfPresent(riskReason,  forKey: .riskReason)
-        try c.encodeIfPresent(decision,    forKey: .decision)
-        try c.encode(blocked,     forKey: .blocked)
-        try c.encodeIfPresent(autoSent,    forKey: .autoSent)
-        try c.encodeIfPresent(tsPaused,    forKey: .tsPaused)
-        try c.encode(role,             forKey: .role)
+        sessionId       = try c.decode(String.self, forKey: .sessionId)
+        title           = try? c.decode(String.self, forKey: .title)
+        project         = (try? c.decode(String.self, forKey: .project)) ?? ""
+        branch          = (try? c.decode(String.self, forKey: .branch)) ?? ""
+        path            = (try? c.decode(String.self, forKey: .path)) ?? ""
+        lastLines       = (try? c.decode(String.self, forKey: .lastLines)) ?? ""
+        role            = (try? c.decode(String.self, forKey: .role)) ?? "builder"
+        goal            = (try? c.decode(String.self, forKey: .goal)) ?? ""
+        status          = (try? c.decode(String.self, forKey: .status)) ?? "working"
+        stateSummary    = (try? c.decode(String.self, forKey: .stateSummary)) ?? ""
+        progress        = (try? c.decode(Int.self, forKey: .progress)) ?? -1
+        suggestedAction = (try? c.decode(String.self, forKey: .suggestedAction)) ?? ""
+        suggestedPrompt = try? c.decode(String.self, forKey: .suggestedPrompt)
+        confidence      = (try? c.decode(Double.self, forKey: .confidence)) ?? 0
+        risk            = (try? c.decode(Bool.self, forKey: .risk)) ?? false
+        riskReason      = try? c.decode(String.self, forKey: .riskReason)
+        urgency         = (try? c.decode(String.self, forKey: .urgency)) ?? "low"
+        autoSent        = try? c.decode(String.self, forKey: .autoSent)
     }
 }
 
 // MARK: - State
 
 struct FleetState: Codable {
-    var phase:         String
-    var mode:          String
-    var sessions:      [FleetSession]
-    var totalSessions: Int
-    var pausedCount:   Int
-    var autoResolved:  Int
-    var needsReview:   Int
-    var updated:       String?
+    var phase:          String
+    var mode:           String
+    var sessions:       [FleetSession]
+    var totalSessions:  Int
+    var needsAttention: Int
+    var idleCount:      Int
+    var workingCount:   Int
+    var updated:        String?
 
     static var empty: FleetState {
         FleetState(phase: "idle", mode: "scout", sessions: [],
-                   totalSessions: 0, pausedCount: 0,
-                   autoResolved: 0, needsReview: 0, updated: nil)
+                   totalSessions: 0, needsAttention: 0,
+                   idleCount: 0, workingCount: 0, updated: nil)
     }
 
     enum CodingKeys: String, CodingKey {
         case phase, mode, sessions, updated
-        case totalSessions = "total_sessions"
-        case pausedCount   = "paused_count"
-        case autoResolved  = "auto_resolved"
-        case needsReview   = "needs_review"
+        case totalSessions  = "total_sessions"
+        case needsAttention = "needs_attention"
+        case idleCount      = "idle_count"
+        case workingCount   = "working_count"
     }
 }
 

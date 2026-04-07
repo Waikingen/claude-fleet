@@ -38,7 +38,7 @@ struct ConfigView: View {
 
                 Divider().background(Color.white.opacity(0.07))
 
-                ScrollView {
+                FleetScrollView {
                     VStack(alignment: .leading, spacing: 28) {
                         // Prompt editor
                         configSection("Haiku Analysis Prompt") {

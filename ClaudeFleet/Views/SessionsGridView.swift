@@ -8,20 +8,20 @@ struct SessionsGridView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 28) {
 
-            // Pending section
-            if !vm.pendingSessions.isEmpty {
+            // Needs attention (idle + paused)
+            if !vm.attentionSessions.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        SectionLabel(text: "⏸  Paused — Needs Review")
+                        SectionLabel(text: "Needs Attention")
                         Spacer()
-                        Button("Approve all safe  ↵") {
+                        Button("Continue all safe  ⌘↵") {
                             vm.approveAllSafe()
                         }
                         .buttonStyle(ApproveAllButtonStyle())
                     }
 
                     LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(vm.pendingSessions) { session in
+                        ForEach(vm.attentionSessions) { session in
                             SessionCardView(session: session)
                                 .environmentObject(vm)
                         }
@@ -29,13 +29,13 @@ struct SessionsGridView: View {
                 }
             }
 
-            // Active section
-            if !vm.activeSessions.isEmpty {
+            // Working sessions
+            if !vm.workingSessions.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionLabel(text: "▶  Active — Running")
+                    SectionLabel(text: "Working")
 
                     LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(vm.activeSessions) { session in
+                        ForEach(vm.workingSessions) { session in
                             SessionCardView(session: session)
                                 .environmentObject(vm)
                         }
@@ -52,8 +52,6 @@ struct SessionsGridView: View {
     }
 }
 
-// MARK: - Section label
-
 struct SectionLabel: View {
     let text: String
     var body: some View {
@@ -65,8 +63,6 @@ struct SectionLabel: View {
     }
 }
 
-// MARK: - Approve all button style
-
 struct ApproveAllButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -75,16 +71,10 @@ struct ApproveAllButtonStyle: ButtonStyle {
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .background(Color(hex: "#00d4ff").opacity(configuration.isPressed ? 0.18 : 0.08))
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(Color(hex: "#00d4ff").opacity(0.2), lineWidth: 1)
-            )
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#00d4ff").opacity(0.2), lineWidth: 1))
             .cornerRadius(6)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
-
-// MARK: - Empty state
 
 struct EmptyStateView: View {
     @EnvironmentObject var vm: FleetViewModel
@@ -93,16 +83,12 @@ struct EmptyStateView: View {
         VStack(spacing: 10) {
             Image(systemName: vm.totalCount > 0 ? "checkmark.circle" : "bolt.slash")
                 .font(.system(size: 28))
-                .foregroundColor(vm.totalCount > 0 ? Color(hex: "#34d399").opacity(0.3) : .white.opacity(0.1))
-            Text(vm.totalCount > 0 ? "All clear — no sessions paused" : "No sessions found")
+                .foregroundColor(.white.opacity(0.15))
+            Text(vm.totalCount > 0 ? "All sessions working — none need attention" : "No Claude sessions found")
                 .font(.system(size: 13))
                 .foregroundColor(.white.opacity(0.2))
             if vm.totalCount > 0 {
-                Text("\(vm.totalCount) iTerm2 windows active, none waiting for input")
-                    .font(.system(size: 11))
-                    .foregroundColor(.white.opacity(0.12))
-            } else {
-                Text("Hit Scan to check iTerm2 for paused Claude sessions")
+                Text("\(vm.workingCount) working · \(vm.idleCount) idle")
                     .font(.system(size: 11))
                     .foregroundColor(.white.opacity(0.12))
             }

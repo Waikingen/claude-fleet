@@ -64,12 +64,12 @@ struct SessionDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
+            FleetScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     sessionTitle
                     if session.risk { riskBlock }
                     taskSection
-                    if session.options.count > 1 { optionsSection }
+                    if !session.suggestedAction.isEmpty { suggestedSection }
                     confidenceSection
                     terminalSection
                     metaSection
@@ -78,7 +78,7 @@ struct SessionDetailView: View {
             }
 
             // Action footer
-            if session.needsReview {
+            if session.needsAttention {
                 Divider().background(Color.white.opacity(0.06))
 
                 HStack(spacing: 8) {
@@ -141,16 +141,25 @@ struct SessionDetailView: View {
 
     private var taskSection: some View {
         DetailSection(label: "Task") {
-            Text(session.waitingFor)
+            Text(session.stateSummary)
                 .font(.system(size: 12))
                 .foregroundColor(.white.opacity(0.5))
                 .lineSpacing(3)
         }
     }
 
-    private var optionsSection: some View {
-        DetailSection(label: "Options") {
-            OptionsRowView(options: session.options, recommended: session.recommended)
+    private var suggestedSection: some View {
+        DetailSection(label: "Suggested Action") {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(session.suggestedAction)
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.5))
+                if let prompt = session.suggestedPrompt {
+                    Text("→ \"\(prompt)\"")
+                        .font(.system(size: 10.5))
+                        .foregroundColor(.white.opacity(0.25))
+                }
+            }
         }
     }
 
@@ -172,7 +181,7 @@ struct SessionDetailView: View {
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty && $0 != ">" && !$0.hasPrefix("─") }
                 .joined(separator: "\n")
-            ScrollView(.vertical) {
+            FleetScrollView {
                 Text(cleaned.isEmpty ? "(no output)" : cleaned)
                     .font(.system(size: 10.5, design: .monospaced))
                     .foregroundColor(.white.opacity(0.4))
@@ -192,7 +201,8 @@ struct SessionDetailView: View {
             VStack(alignment: .leading, spacing: 3) {
                 MetaRow(key: "branch", value: session.branch)
                 MetaRow(key: "path",   value: session.path)
-                MetaRow(key: "paused", value: session.elapsedLabel)
+                MetaRow(key: "status", value: session.status)
+                MetaRow(key: "progress", value: session.progressLabel)
             }
         }
     }
@@ -201,44 +211,6 @@ struct SessionDetailView: View {
         if v >= 0.8 { return Color(hex: "#34d399") }
         if v >= 0.5 { return Color(hex: "#fbbf24") }
         return Color(hex: "#ff6040")
-    }
-}
-
-// MARK: - Options row (extracted to help compiler)
-
-struct OptionsRowView: View {
-    let options: [String]
-    let recommended: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                ForEach(options, id: \.self) { opt in
-                    optionChip(opt)
-                }
-            }
-            if let rec = recommended {
-                Text("→ \"\(rec)\" recommended")
-                    .font(.system(size: 10.5))
-                    .foregroundColor(.white.opacity(0.25))
-            }
-        }
-        .flexibleWidth()
-    }
-
-    private func optionChip(_ opt: String) -> some View {
-        let isRec = opt == recommended
-        return Text(opt)
-            .font(.system(size: 11, weight: .medium, design: .monospaced))
-            .foregroundColor(isRec ? Color(hex: "#00d4ff") : .white.opacity(0.4))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(isRec ? Color(hex: "#00d4ff").opacity(0.1) : Color.white.opacity(0.04))
-            .overlay(RoundedRectangle(cornerRadius: 5).stroke(
-                isRec ? Color(hex: "#00d4ff").opacity(0.3) : Color.white.opacity(0.08),
-                lineWidth: 1
-            ))
-            .cornerRadius(5)
     }
 }
 

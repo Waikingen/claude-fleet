@@ -78,6 +78,16 @@ final class FleetSocket {
     func setMode(_ mode: String) {
         send(["cmd": "set_mode", "mode": mode])
     }
+
+    func continueSession(sessionId: String, prompt: String? = nil, completion: ((Bool) -> Void)? = nil) {
+        var cmd: [String: Any] = ["cmd": "continue", "session_id": sessionId]
+        if let p = prompt { cmd["prompt"] = p }
+        send(cmd, completion: completion)
+    }
+
+    func setGoal(project: String, goal: String) {
+        send(["cmd": "set_goal", "project": project, "goal": goal])
+    }
 }
 
 enum FleetSocketError: LocalizedError {

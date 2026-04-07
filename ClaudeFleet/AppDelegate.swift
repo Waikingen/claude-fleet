@@ -22,8 +22,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        // .accessory = no dock icon, no menu bar takeover
-        NSApp.setActivationPolicy(.accessory)
+        // .regular = dock icon + menubar (so Cmd+Tab and window management work)
+        NSApp.setActivationPolicy(.regular)
 
         // Build panel lazily — don't show it on launch
         setupPanel()
@@ -50,16 +50,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let cmd = event.modifierFlags.contains(.command)
             if cmd && event.keyCode == 13 { panel.orderOut(nil); return nil } // Cmd+W
             if event.keyCode == 53        { panel.orderOut(nil); return nil } // Esc
+            if cmd && event.keyCode == 15 { self.viewModel.scan(); return nil } // Cmd+R → rescan
             // Enter → approve selected session
             if event.keyCode == 36 && !cmd {
-                if let session = self.viewModel.selectedSession, session.needsReview {
-                    self.viewModel.approve(session)
+                if let session = self.viewModel.selectedSession, session.needsAttention {
+                    self.viewModel.continueSession(session)
                 }
                 return nil
             }
             // Backspace → deny selected session
             if event.keyCode == 51 && !cmd {
-                if let session = self.viewModel.selectedSession, session.needsReview {
+                if let session = self.viewModel.selectedSession, session.needsAttention {
                     self.viewModel.deny(session)
                 }
                 return nil
@@ -104,7 +105,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         button.target = self
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
 
-        viewModel.$pendingCount
+        viewModel.$attentionCount
             .receive(on: RunLoop.main)
             .sink { [weak self] count in
                 guard let button = self?.statusItem?.button else { return }
@@ -152,10 +153,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func togglePanel() {
         guard let panel = panel else { return }
-        if panel.isVisible {
+        if panel.isVisible && panel.isKeyWindow {
             panel.orderOut(nil)
         } else {
-            panel.orderFront(nil)
+            panel.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
         }
     }
 
@@ -204,21 +206,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 1100, height: 700),
-            styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
+            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
             backing: .buffered,
-            defer: true  // defer=true: don't show on creation
+            defer: true
         )
         panel?.contentView = hosting
-        panel?.title = ""
+        panel?.title = "Claude Fleet"
         panel?.titlebarAppearsTransparent = true
         panel?.backgroundColor = .clear
         panel?.isOpaque = false
-        panel?.level = .floating
         panel?.isMovableByWindowBackground = true
         panel?.center()
         panel?.setFrameAutosaveName("ClaudeFleetPanel")
-        panel?.collectionBehavior = [.canJoinAllSpaces, .stationary]
-        // Critical: don't become key window — never steal focus from iTerm2
-        panel?.becomesKeyOnlyIfNeeded = true
     }
 }
