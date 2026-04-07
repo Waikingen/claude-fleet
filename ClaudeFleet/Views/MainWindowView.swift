@@ -50,6 +50,11 @@ struct MainWindowView: View {
                     // Main content
                     ZStack {
                         LineGridBackground()
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                // Click on empty grid background → close panel
+                                NSApp.keyWindow?.orderOut(nil)
+                            }
                         FleetScrollView {
                             SessionsGridView()
                                 .environmentObject(vm)

@@ -36,7 +36,7 @@ struct SessionCardView: View {
         .onTapGesture { vm.selectSession(session.id) }
         .onHover { isHovered = $0 }
         .overlay(flashOverlay)
-        .overlay(session.needsAttention ? AnyView(HUDCorners(size: 10, thickness: 1.0, color: Color(hex: "#00d4ff").opacity(0.35))) : AnyView(EmptyView()))
+        .overlay(session.needsAttention ? AnyView(HUDCorners(size: 10, thickness: 1.0, color: projectColor.opacity(0.35))) : AnyView(EmptyView()))
     }
 
     // MARK: - Header

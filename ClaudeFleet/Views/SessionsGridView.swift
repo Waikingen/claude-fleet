@@ -6,60 +6,31 @@ struct SessionsGridView: View {
     private let columns = [GridItem(.adaptive(minimum: 290, maximum: 420), spacing: 12)]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 28) {
-
-            // Needs attention (idle + paused)
+        VStack(alignment: .leading, spacing: 16) {
+            // Top action bar (only when there are attention sessions)
             if !vm.attentionSessions.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        SectionLabel(text: "Needs Attention")
-                        Spacer()
-                        Button("Continue all safe  ⌘↵") {
-                            vm.approveAllSafe()
-                        }
-                        .buttonStyle(ApproveAllButtonStyle())
+                HStack {
+                    Spacer()
+                    Button("Continue all safe  ⌘↵") {
+                        vm.approveAllSafe()
                     }
-
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(vm.attentionSessions) { session in
-                            SessionCardView(session: session)
-                                .environmentObject(vm)
-                        }
-                    }
+                    .buttonStyle(ApproveAllButtonStyle())
                 }
             }
 
-            // Working sessions
-            if !vm.workingSessions.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    SectionLabel(text: "Working")
-
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(vm.workingSessions) { session in
-                            SessionCardView(session: session)
-                                .environmentObject(vm)
-                        }
+            // Flat grid — all sessions together, sorted by urgency
+            if !vm.sessions.isEmpty {
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(vm.sessions) { session in
+                        SessionCardView(session: session)
+                            .environmentObject(vm)
                     }
                 }
-            }
-
-            // Empty state
-            if vm.sessions.isEmpty {
+            } else {
                 EmptyStateView()
                     .environmentObject(vm)
             }
         }
-    }
-}
-
-struct SectionLabel: View {
-    let text: String
-    var body: some View {
-        Text(text)
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundColor(.white.opacity(0.25))
-            .tracking(0.06 * 11)
-            .textCase(.uppercase)
     }
 }
 
@@ -87,11 +58,9 @@ struct EmptyStateView: View {
             Text(vm.totalCount > 0 ? "All sessions working — none need attention" : "No Claude sessions found")
                 .font(.system(size: 13))
                 .foregroundColor(.white.opacity(0.2))
-            if vm.totalCount > 0 {
-                Text("\(vm.workingCount) working · \(vm.idleCount) idle")
-                    .font(.system(size: 11))
-                    .foregroundColor(.white.opacity(0.12))
-            }
+            Text("Hit Cmd+R to scan")
+                .font(.system(size: 11))
+                .foregroundColor(.white.opacity(0.12))
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 60)
