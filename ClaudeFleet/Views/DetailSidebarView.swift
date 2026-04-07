@@ -60,7 +60,6 @@ struct DetailSidebarView: View {
 struct SessionDetailView: View {
     let session: FleetSession
     @EnvironmentObject var vm: FleetViewModel
-    @State private var terminalExpanded = false
     @State private var detailsExpanded = false
 
     private var projectColor: Color {
@@ -75,43 +74,49 @@ struct SessionDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 16) {
-                    // 1. Identity (tiny)
-                    sessionHeader
+            // Compact info section
+            VStack(alignment: .leading, spacing: 12) {
+                // 1. Identity (tiny)
+                sessionHeader
 
-                    // 2. THE ASK — what does this agent want?
-                    if let prompt = session.suggestedPrompt {
-                        askBlock(prompt: prompt)
-                    } else if session.needsAttention {
-                        needsInstructionBlock
-                    }
-
-                    // 3. Context — one-line summary of where we are
-                    if !session.stateSummary.isEmpty {
-                        Text(session.stateSummary)
-                            .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.4))
-                            .lineSpacing(2)
-                            .lineLimit(3)
-                    }
-
-                    // 4. Risk warning (only when risky)
-                    if session.risk { riskBlock }
-
-                    // 5. Signal badge — safe / review / risky
-                    signalBadge
-
-                    // 6. Terminal (collapsed by default)
-                    terminalDisclosure
-
-                    // 7. Session details (collapsed by default)
-                    detailsDisclosure
+                // 2. THE ASK — what does this agent want?
+                if let prompt = session.suggestedPrompt {
+                    askBlock(prompt: prompt)
+                } else if session.needsAttention {
+                    needsInstructionBlock
                 }
-                .padding(16)
-            }
 
-            // Pinned action footer — always visible, never scrolls away
+                // 3. Context — one-line summary of where we are
+                if !session.stateSummary.isEmpty {
+                    Text(session.stateSummary)
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.4))
+                        .lineSpacing(2)
+                        .lineLimit(2)
+                }
+
+                // 4. Risk warning (only when risky)
+                if session.risk { riskBlock }
+
+                // 5. Signal badge — safe / review / risky
+                signalBadge
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 10)
+
+            Divider().background(Color.white.opacity(0.06))
+
+            // Terminal takes ALL remaining space
+            terminalSection
+                .frame(maxHeight: .infinity)
+
+            // Details disclosure (collapsed)
+            detailsDisclosure
+                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
+
+            // Pinned action footer
             if session.needsAttention {
                 Divider().background(Color.white.opacity(0.06))
                 actionFooter
@@ -247,39 +252,28 @@ struct SessionDetailView: View {
         return "Low confidence — review"
     }
 
-    // MARK: - Terminal (collapsed by default)
+    // MARK: - Terminal (always visible, fills remaining space)
 
-    private var terminalDisclosure: some View {
-        VStack(spacing: 0) {
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.2)) { terminalExpanded.toggle() }
-            }) {
-                HStack(spacing: 6) {
-                    Image(systemName: terminalExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.25))
-                        .frame(width: 12)
-                    Circle().fill(Color(hex: "#34d399").opacity(0.5)).frame(width: 5, height: 5)
-                    Text("TERMINAL")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.white.opacity(0.25))
-                        .tracking(1.2)
-                    Spacer()
-                    Text(session.project)
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.12))
-                }
+    private var terminalSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Title bar
+            HStack(spacing: 6) {
+                Circle().fill(Color(hex: "#34d399").opacity(0.5)).frame(width: 5, height: 5)
+                Text("TERMINAL")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(.white.opacity(0.25))
+                    .tracking(1.2)
+                Spacer()
+                Text(session.project)
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.12))
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
             .background(Color(hex: "#0a0a12"))
 
-            if terminalExpanded {
-                terminalContent
-                    .frame(height: 280)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
+            // Screenshot or text
+            terminalContent
         }
         .overlay(
             RoundedRectangle(cornerRadius: 6)
