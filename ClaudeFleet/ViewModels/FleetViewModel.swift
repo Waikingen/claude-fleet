@@ -53,7 +53,7 @@ final class FleetViewModel: ObservableObject {
             .sink { [weak self] state in self?.applyState(state) }
             .store(in: &cancellables)
 
-        // Capture screenshots every 4 seconds
+        // Capture screenshots every 4s using daemon's window_map.json for correct matching
         screenshotTimer = Timer.publish(every: 4, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.captureScreenshots() }
@@ -148,47 +148,44 @@ final class FleetViewModel: ObservableObject {
     }
 
     func captureScreenshots() {
-        // CGWindowListCreateImage is deprecated in macOS 15+. Use screencapture -l instead.
+        // Uses daemon's window_map.json for correct session→window matching.
+        // The daemon knows the real iTerm2 session→window relationship via AppleScript.
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let dir = FileManager.default.homeDirectoryForCurrentUser
-                .appendingPathComponent(".claude-fleet/screenshots")
+            let home = FileManager.default.homeDirectoryForCurrentUser
+            let dir = home.appendingPathComponent(".claude-fleet/screenshots")
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-            // Get iTerm2 window IDs from CGWindowListCopyWindowInfo (listing still works, just not image capture)
-            guard let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return }
+            // Read daemon's session→windowID mapping
+            let mapPath = home.appendingPathComponent(".claude-fleet/window_map.json")
+            guard let data = try? Data(contentsOf: mapPath),
+                  let mapping = try? JSONSerialization.jsonObject(with: data) as? [String: Int] else { return }
 
-            let itermWindows = windowList.filter {
-                ($0[kCGWindowOwnerName as String] as? String)?.contains("iTerm") == true
+            var captured = Set<Int>()  // track captured window IDs
+
+            for (sessionId, windowId) in mapping {
+                let sessionPath = dir.appendingPathComponent("\(sessionId).png").path
+                let tmpPath = dir.appendingPathComponent("tmp-\(windowId).png").path
+
+                // Capture each window only once
+                if !captured.contains(windowId) {
+                    let proc = Process()
+                    proc.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+                    proc.arguments = ["-l", String(windowId), "-x", "-o", tmpPath]
+                    try? proc.run()
+                    proc.waitUntilExit()
+                    captured.insert(windowId)
+                }
+
+                // Copy to session-specific path
+                if FileManager.default.fileExists(atPath: tmpPath) {
+                    try? FileManager.default.removeItem(atPath: sessionPath)
+                    try? FileManager.default.copyItem(atPath: tmpPath, toPath: sessionPath)
+                }
             }
 
-            let sessions = DispatchQueue.main.sync { self?.sessions ?? [] }
-
-            for window in itermWindows {
-                guard let windowId = window[kCGWindowNumber as String] as? Int,
-                      let windowName = window[kCGWindowName as String] as? String else { continue }
-
-                // screencapture -l <windowid> -x -o <path>
-                let tmpPath = dir.appendingPathComponent("tmp-\(windowId).png").path
-                let proc = Process()
-                proc.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-                proc.arguments = ["-l", String(windowId), "-x", "-o", tmpPath]
-                try? proc.run()
-                proc.waitUntilExit()
-
-                guard FileManager.default.fileExists(atPath: tmpPath) else { continue }
-
-                // Match to session by window name containing project/branch
-                for session in sessions {
-                    if windowName.lowercased().contains(session.project.lowercased()) ||
-                       windowName.lowercased().contains(session.branch.lowercased()) {
-                        let sessionPath = dir.appendingPathComponent("\(session.sessionId).png").path
-                        try? FileManager.default.removeItem(atPath: sessionPath)
-                        try? FileManager.default.moveItem(atPath: tmpPath, toPath: sessionPath)
-                        break
-                    }
-                }
-                // Clean up unmatched tmp
-                try? FileManager.default.removeItem(atPath: tmpPath)
+            // Clean up tmp files
+            for wid in captured {
+                try? FileManager.default.removeItem(atPath: dir.appendingPathComponent("tmp-\(wid).png").path)
             }
 
             DispatchQueue.main.async { self?.screenshotTick += 1 }
