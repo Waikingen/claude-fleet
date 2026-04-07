@@ -250,12 +250,21 @@ struct SessionCardView: View {
                     .buttonStyle(DenyButtonStyle())
                 }
 
-                // Jump to session
-                Button(action: { /* open iTerm2 window — future */ }) {
+                // Jump to iTerm2 window
+                Button(action: { vm.jumpToSession(session) }) {
                     Image(systemName: "arrow.up.right.square")
                         .font(.system(size: 13))
                 }
                 .buttonStyle(IconButtonStyle())
+                .help("Jump to terminal")
+
+                // Kill session
+                Button(action: { vm.killSession(session) }) {
+                    Image(systemName: "xmark.square")
+                        .font(.system(size: 13))
+                }
+                .buttonStyle(IconButtonStyle())
+                .help("Kill session")
             }
         }
     }

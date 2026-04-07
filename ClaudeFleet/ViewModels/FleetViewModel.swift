@@ -55,6 +55,7 @@ final class FleetViewModel: ObservableObject {
         guard !isScanning else { return }
         isScanning = true
         FleetSocket.shared.scan()
+        captureScreenshots()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.isScanning = false
         }
@@ -115,6 +116,67 @@ final class FleetViewModel: ObservableObject {
     func setGlobalRole(_ role: String) {
         globalRole = role
         FleetSocket.shared.setRole(role: role)
+    }
+
+    func killSession(_ session: FleetSession) {
+        FleetSocket.shared.kill(sessionId: session.sessionId) { [weak self] ok in
+            if ok { self?.showToast("Killed: \(session.project)") }
+        }
+    }
+
+    func jumpToSession(_ session: FleetSession) {
+        FleetSocket.shared.jump(sessionId: session.sessionId)
+    }
+
+    func newSession(path: String) {
+        FleetSocket.shared.newSession(path: path)
+        showToast("Starting new session...")
+    }
+
+    func captureScreenshots() {
+        // Run screencapture from the Swift app context (has permissions)
+        DispatchQueue.global(qos: .utility).async {
+            let dir = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".claude-fleet/screenshots")
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+            // Get iTerm2 window IDs via osascript
+            let script = Process()
+            script.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            script.arguments = ["-e", """
+                tell application "iTerm2"
+                    set out to ""
+                    repeat with w in windows
+                        set wid to id of w
+                        repeat with t in tabs of w
+                            repeat with s in sessions of t
+                                set out to out & (unique ID of s) & "|" & wid & linefeed
+                            end repeat
+                        end repeat
+                    end repeat
+                    return out
+                end tell
+            """]
+            let pipe = Pipe()
+            script.standardOutput = pipe
+            try? script.run()
+            script.waitUntilExit()
+
+            let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            for line in output.split(separator: "\n") {
+                let parts = line.split(separator: "|")
+                guard parts.count == 2 else { continue }
+                let sessionId = String(parts[0])
+                let windowId = String(parts[1])
+                let outPath = dir.appendingPathComponent("\(sessionId).png").path
+
+                let capture = Process()
+                capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+                capture.arguments = ["-l", windowId, "-x", "-o", outPath]
+                try? capture.run()
+                capture.waitUntilExit()
+            }
+        }
     }
 
     func setGoal(project: String, goal: String) {

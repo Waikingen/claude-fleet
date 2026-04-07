@@ -88,6 +88,18 @@ final class FleetSocket {
     func setGoal(project: String, goal: String) {
         send(["cmd": "set_goal", "project": project, "goal": goal])
     }
+
+    func kill(sessionId: String, completion: ((Bool) -> Void)? = nil) {
+        send(["cmd": "kill", "session_id": sessionId], completion: completion)
+    }
+
+    func jump(sessionId: String) {
+        send(["cmd": "jump", "session_id": sessionId])
+    }
+
+    func newSession(path: String) {
+        send(["cmd": "new_session", "path": path])
+    }
 }
 
 enum FleetSocketError: LocalizedError {
