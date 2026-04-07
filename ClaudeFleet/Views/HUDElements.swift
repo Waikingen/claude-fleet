@@ -98,14 +98,14 @@ struct HUDCorners: View {
     }
 
     private func corner() -> some View {
-        ZStack(alignment: .topLeading) {
-            Rectangle()
-                .fill(color)
-                .frame(width: size, height: thickness)
-            Rectangle()
-                .fill(color)
-                .frame(width: thickness, height: size)
+        Path { path in
+            path.move(to: CGPoint(x: 0, y: size))
+            path.addLine(to: CGPoint(x: 0, y: 3))
+            path.addQuadCurve(to: CGPoint(x: 3, y: 0), control: CGPoint(x: 0, y: 0))
+            path.addLine(to: CGPoint(x: size, y: 0))
         }
+        .stroke(color, lineWidth: thickness)
+        .frame(width: size, height: size)
         .padding(6)
     }
 }

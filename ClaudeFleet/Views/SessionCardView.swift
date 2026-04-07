@@ -147,35 +147,34 @@ struct SessionCardView: View {
 
     private var previewText: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // State summary — always 2 lines reserved
             if isAnalyzing {
-                // Analyzing state — show spinner
                 HStack(spacing: 8) {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .controlSize(.small)
-                        .tint(Color(hex: "#00d4ff"))
-                    Text(session.stateSummary)
+                    // Custom pulsing dot instead of system ProgressView (too dark)
+                    Circle()
+                        .fill(projectColor)
+                        .frame(width: 8, height: 8)
+                        .shadow(color: projectColor.opacity(0.8), radius: 4)
+                        .pulsing()
+                    Text("Analyzing...")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Color(hex: "#00d4ff").opacity(0.7))
+                        .foregroundColor(projectColor.opacity(0.8))
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
             } else {
-                // State summary
                 Text(session.stateSummary)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.white.opacity(0.65))
                     .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                // Suggested action
-                if !session.suggestedAction.isEmpty && session.needsAttention {
-                    Text(session.suggestedAction)
-                        .font(.system(size: 11))
-                        .foregroundColor(Color(hex: "#00d4ff").opacity(0.55))
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                    .frame(maxWidth: .infinity, minHeight: 32, alignment: .topLeading)
             }
+
+            // Suggested action — always reserve space (2 lines)
+            Text(isAnalyzing ? " " : (session.needsAttention ? session.suggestedAction : " "))
+                .font(.system(size: 11))
+                .foregroundColor(projectColor.opacity(0.55))
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, minHeight: 28, alignment: .topLeading)
         }
     }
 

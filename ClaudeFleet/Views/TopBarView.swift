@@ -69,26 +69,34 @@ struct TopBarView: View {
 
             divider
 
-            // Global role menu
+            // Global role picker
             Menu {
                 ForEach(FleetRole.all) { role in
-                    Button(role.name) {
-                        vm.setGlobalRole(role.id)
+                    Button(action: { vm.setGlobalRole(role.id) }) {
+                        HStack {
+                            Text(role.name)
+                            if vm.globalRole == role.id {
+                                Image(systemName: "checkmark")
+                            }
+                        }
                     }
                 }
             } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "person.crop.circle")
-                        .font(.system(size: 10))
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(Color(hex: "#00d4ff"))
+                        .frame(width: 5, height: 5)
                     Text(FleetRole.named(vm.globalRole).name)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 11, weight: .semibold))
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
                 }
-                .foregroundColor(Color(hex: "#00d4ff").opacity(0.75))
+                .foregroundColor(.white.opacity(0.7))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(Color(hex: "#00d4ff").opacity(0.08))
+                .background(Color.white.opacity(0.06))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#00d4ff").opacity(0.2), lineWidth: 0.5))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.1), lineWidth: 0.5))
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
