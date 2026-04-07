@@ -279,11 +279,12 @@ struct SessionDetailView: View {
             // Screenshot or text fallback
             if let ssPath = session.screenshot, FileManager.default.fileExists(atPath: ssPath),
                let nsImage = NSImage(contentsOfFile: ssPath) {
-                ScrollView([.horizontal, .vertical], showsIndicators: false) {
+                GeometryReader { geo in
                     Image(nsImage: nsImage)
                         .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity)
+                        .scaledToFill()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
                 }
                 .background(Color.black)
             } else {
