@@ -148,8 +148,8 @@ final class FleetViewModel: ObservableObject {
     }
 
     func captureScreenshots() {
-        // Uses daemon's window_map.json for correct session→window matching.
-        // The daemon knows the real iTerm2 session→window relationship via AppleScript.
+        // Uses daemon's window_map.json for correct session→window mapping +
+        // CGWindowListCreateImage for capture (no permission prompts, uses existing grant).
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let home = FileManager.default.homeDirectoryForCurrentUser
             let dir = home.appendingPathComponent(".claude-fleet/screenshots")
@@ -160,32 +160,30 @@ final class FleetViewModel: ObservableObject {
             guard let data = try? Data(contentsOf: mapPath),
                   let mapping = try? JSONSerialization.jsonObject(with: data) as? [String: Int] else { return }
 
-            var captured = Set<Int>()  // track captured window IDs
+            var capturedImages: [Int: CGImage] = [:]
 
             for (sessionId, windowId) in mapping {
-                let sessionPath = dir.appendingPathComponent("\(sessionId).png").path
-                let tmpPath = dir.appendingPathComponent("tmp-\(windowId).png").path
+                let outURL = dir.appendingPathComponent("\(sessionId).png")
 
-                // Capture each window only once
-                if !captured.contains(windowId) {
-                    let proc = Process()
-                    proc.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-                    proc.arguments = ["-l", String(windowId), "-x", "-o", tmpPath]
-                    try? proc.run()
-                    proc.waitUntilExit()
-                    captured.insert(windowId)
+                // Capture each window only once via CGWindowListCreateImage
+                if capturedImages[windowId] == nil {
+                    if let cgImage = CGWindowListCreateImage(
+                        .null,
+                        .optionIncludingWindow,
+                        CGWindowID(windowId),
+                        [.boundsIgnoreFraming, .bestResolution]
+                    ) {
+                        capturedImages[windowId] = cgImage
+                    }
                 }
 
-                // Copy to session-specific path
-                if FileManager.default.fileExists(atPath: tmpPath) {
-                    try? FileManager.default.removeItem(atPath: sessionPath)
-                    try? FileManager.default.copyItem(atPath: tmpPath, toPath: sessionPath)
-                }
-            }
-
-            // Clean up tmp files
-            for wid in captured {
-                try? FileManager.default.removeItem(atPath: dir.appendingPathComponent("tmp-\(wid).png").path)
+                // Write PNG for this session
+                guard let cgImage = capturedImages[windowId] else { continue }
+                let nsImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+                guard let tiffData = nsImage.tiffRepresentation,
+                      let rep = NSBitmapImageRep(data: tiffData),
+                      let pngData = rep.representation(using: .png, properties: [:]) else { continue }
+                try? pngData.write(to: outURL)
             }
 
             DispatchQueue.main.async { self?.screenshotTick += 1 }
