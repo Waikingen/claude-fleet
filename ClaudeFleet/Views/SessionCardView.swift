@@ -23,6 +23,7 @@ struct SessionCardView: View {
             }
         }
         .padding(16)
+        .frame(minHeight: 160, alignment: .top)
         .background(cardBackground)
         .overlay(cardBorder)
         .cornerRadius(14)
