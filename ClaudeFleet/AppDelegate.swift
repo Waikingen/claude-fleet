@@ -49,7 +49,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             guard let panel = self.panel, panel.isVisible else { return event }
             let cmd = event.modifierFlags.contains(.command)
             if cmd && event.keyCode == 13 { panel.orderOut(nil); return nil } // Cmd+W
-            if event.keyCode == 53        { panel.orderOut(nil); return nil } // Esc
+            // Esc — exit focus mode first, then close panel
+            if event.keyCode == 53 {
+                if self.viewModel.focusedId != nil {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        self.viewModel.focusedId = nil
+                    }
+                } else {
+                    panel.orderOut(nil)
+                }
+                return nil
+            }
             if cmd && event.keyCode == 15 { self.viewModel.scan(); return nil } // Cmd+R → rescan
             // Enter → approve selected session
             if event.keyCode == 36 && !cmd {

@@ -285,8 +285,10 @@ struct SessionDetailView: View {
     @ViewBuilder
     private var terminalContent: some View {
         if let ssPath = session.screenshot, FileManager.default.fileExists(atPath: ssPath) {
-            let _ = vm.screenshotTick
-            if let nsImage = NSImage(contentsOfFile: ssPath) {
+            let tick = vm.screenshotTick
+            // Read raw data to bypass NSImage file cache
+            if let data = try? Data(contentsOf: URL(fileURLWithPath: ssPath)),
+               let nsImage = NSImage(data: data) {
                 GeometryReader { geo in
                     Image(nsImage: nsImage)
                         .resizable()
@@ -294,7 +296,9 @@ struct SessionDetailView: View {
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
                 }
-                .id("sidebar-ss-\(session.sessionId)-\(vm.screenshotTick)")
+                .id("sidebar-ss-\(session.sessionId)-\(tick)")
+                .transition(.opacity)
+                .animation(.easeInOut(duration: 0.3), value: tick)
                 .background(Color.black)
             }
         } else {
