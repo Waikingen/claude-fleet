@@ -362,10 +362,10 @@ struct AgentFocusView: View {
     // MARK: - Terminal panel (right side)
 
     private var terminalPanel: some View {
-        VStack(spacing: 0) {
-            // Terminal header
+        VStack(spacing: 16) {
+            // Header
             HStack(spacing: 8) {
-                Circle().fill(Color(hex: "#34d399").opacity(0.6)).frame(width: 7, height: 7)
+                Circle().fill(projectColor.opacity(0.6)).frame(width: 7, height: 7)
                 Text(session.project)
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
                     .foregroundColor(.white.opacity(0.4))
@@ -374,42 +374,39 @@ struct AgentFocusView: View {
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.white.opacity(0.2))
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(Color(hex: "#08080e"))
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
 
-            // Screenshot or text
+            // Screenshot — clean, no box, just shadow
             if let ssPath = session.screenshot,
                FileManager.default.fileExists(atPath: ssPath),
                let nsImage = NSImage(contentsOfFile: ssPath) {
-                ScrollView([.vertical], showsIndicators: false) {
-                    Image(nsImage: nsImage)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity)
-                }
-                .background(Color.black)
-            } else {
-                let cleaned = session.cleanLastLines
-                    .components(separatedBy: "\n")
-                    .map { $0.trimmingCharacters(in: .whitespaces) }
-                    .filter { !$0.isEmpty && $0 != ">" }
-                    .suffix(60)
-                    .joined(separator: "\n")
-                ScrollView(.vertical, showsIndicators: false) {
-                    Text(cleaned.isEmpty ? "Scan to capture terminal output" : cleaned)
-                        .font(.system(size: 12, weight: .regular, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.6))
-                        .lineSpacing(3.5)
-                        .padding(16)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                }
-                .background(Color(hex: "#04040a"))
+                Image(nsImage: nsImage)
+                    .resizable()
+                    .scaledToFit()
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .shadow(color: .black.opacity(0.5), radius: 20, y: 8)
+                    .padding(.horizontal, 16)
             }
+
+            // Terminal text
+            let cleaned = session.cleanLastLines
+                .components(separatedBy: "\n")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty && $0 != ">" }
+                .suffix(60)
+                .joined(separator: "\n")
+            ScrollView(.vertical, showsIndicators: false) {
+                Text(cleaned.isEmpty ? "Scan to capture terminal output" : cleaned)
+                    .font(.system(size: 12, weight: .regular, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.55))
+                    .lineSpacing(3.5)
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+            }
+            .frame(maxHeight: .infinity)
         }
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.04), lineWidth: 1))
-        .cornerRadius(8)
     }
 
     // MARK: - Project color
