@@ -64,7 +64,7 @@ struct SessionCardView: View {
                 } else {
                     Text(String(session.project.prefix(1)).uppercased())
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color(hex: "#00d4ff"))
+                        .foregroundColor(projectColor)
                 }
             }
 
@@ -141,22 +141,40 @@ struct SessionCardView: View {
 
     // MARK: - Preview
 
+    private var isAnalyzing: Bool {
+        session.stateSummary.contains("Analyzing") || session.stateSummary.starts(with: "Detected:")
+    }
+
     private var previewText: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // State summary — what's happening right now
-            Text(session.stateSummary)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.white.opacity(0.65))
-                .lineLimit(2)
+            if isAnalyzing {
+                // Analyzing state — show spinner
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .controlSize(.small)
+                        .tint(Color(hex: "#00d4ff"))
+                    Text(session.stateSummary)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color(hex: "#00d4ff").opacity(0.7))
+                }
                 .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Suggested action — what Fleet thinks should happen next
-            if !session.suggestedAction.isEmpty && session.needsAttention {
-                Text(session.suggestedAction)
-                    .font(.system(size: 11))
-                    .foregroundColor(Color(hex: "#00d4ff").opacity(0.55))
+            } else {
+                // State summary
+                Text(session.stateSummary)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white.opacity(0.65))
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Suggested action
+                if !session.suggestedAction.isEmpty && session.needsAttention {
+                    Text(session.suggestedAction)
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(hex: "#00d4ff").opacity(0.55))
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
     }
@@ -265,12 +283,28 @@ struct SessionCardView: View {
 
     // MARK: - Style helpers
 
+    // Deterministic color per project name
+    private var projectColor: Color {
+        let colors: [Color] = [
+            Color(hex: "#00d4ff"), // cyan
+            Color(hex: "#7c3aed"), // violet
+            Color(hex: "#00ff88"), // green
+            Color(hex: "#ff6b35"), // orange
+            Color(hex: "#4d9fff"), // blue
+            Color(hex: "#ff2d78"), // pink
+            Color(hex: "#fbbf24"), // amber
+            Color(hex: "#34d399"), // emerald
+        ]
+        let hash = abs(session.project.hashValue)
+        return colors[hash % colors.count]
+    }
+
     private var cardBackground: some View {
         Group {
             if session.risk {
                 Color(hex: "#ff3c1e").opacity(0.04)
             } else if isSelected {
-                Color(hex: "#00d4ff").opacity(0.05)
+                projectColor.opacity(0.06)
             } else {
                 Color.white.opacity(isHovered ? 0.05 : 0.035)
             }
@@ -284,40 +318,33 @@ struct SessionCardView: View {
 
     private var borderColor: Color {
         if let flash = actionFlash {
-            return flash == .approve ? Color(hex: "#00d4ff").opacity(0.6) : Color(hex: "#ff6040").opacity(0.6)
+            return flash == .approve ? projectColor.opacity(0.6) : Color(hex: "#ff6040").opacity(0.6)
         }
         if session.risk { return Color(hex: "#ff5032").opacity(0.3) }
-        if isSelected   { return Color(hex: "#00d4ff").opacity(0.35) }
-        return Color.white.opacity(isHovered ? 0.12 : 0.07)
+        if isSelected   { return projectColor.opacity(0.4) }
+        if isHovered    { return projectColor.opacity(0.18) }
+        return projectColor.opacity(0.08)
     }
 
     private var cardShadow: Color {
-        if isSelected && !session.risk { return Color(hex: "#00d4ff").opacity(0.1) }
+        if isSelected && !session.risk { return projectColor.opacity(0.12) }
         return .clear
     }
 
     private var avatarBg: Color {
-        if session.isDone    { return Color(hex: "#34d399").opacity(0.12) }
-        if session.isWorking { return Color(hex: "#34d399").opacity(0.08) }
-        if session.isHigh    { return Color(hex: "#ff6040").opacity(0.1) }
-        if session.risk      { return Color(hex: "#ff6040").opacity(0.1) }
-        return Color(hex: "#00d4ff").opacity(0.1)
+        if session.risk { return Color(hex: "#ff6040").opacity(0.1) }
+        return projectColor.opacity(session.isWorking ? 0.06 : 0.1)
     }
 
     private var avatarBorder: Color {
-        if session.isDone    { return Color(hex: "#34d399").opacity(0.3) }
-        if session.isWorking { return Color(hex: "#34d399").opacity(0.15) }
-        if session.isHigh    { return Color(hex: "#ff6040").opacity(0.25) }
-        if session.risk      { return Color(hex: "#ff6040").opacity(0.25) }
-        return Color(hex: "#00d4ff").opacity(0.2)
+        if session.risk { return Color(hex: "#ff6040").opacity(0.25) }
+        return projectColor.opacity(session.isWorking ? 0.12 : 0.25)
     }
 
     private var statusDotColor: Color {
         if session.isHigh    { return Color(hex: "#ff6040") }
-        if session.isDone    { return Color(hex: "#34d399") }
         if session.isWorking { return Color(hex: "#34d399") }
-        if session.isPaused  { return Color(hex: "#00d4ff") }
-        return Color(hex: "#00d4ff")
+        return projectColor
     }
 
     private var statusLabel: String {
