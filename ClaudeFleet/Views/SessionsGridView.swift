@@ -5,9 +5,20 @@ struct SessionsGridView: View {
 
     private let columns = [GridItem(.adaptive(minimum: 290, maximum: 420), spacing: 12)]
 
+    // Stable-sorted groups
+    private var attentionSorted: [FleetSession] {
+        vm.attentionSessions.sorted { $0.project < $1.project }
+    }
+    private var workingSorted: [FleetSession] {
+        vm.sessions.filter { $0.isWorking }.sorted { $0.project < $1.project }
+    }
+    private var restSorted: [FleetSession] {
+        vm.sessions.filter { !$0.needsAttention && !$0.isWorking }.sorted { $0.project < $1.project }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Top action bar (only when there are attention sessions)
+            // Top action bar
             if !vm.attentionSessions.isEmpty {
                 HStack {
                     Spacer()
@@ -18,19 +29,61 @@ struct SessionsGridView: View {
                 }
             }
 
-            // Flat grid — all sessions together, sorted by urgency
             if !vm.sessions.isEmpty {
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(vm.sessions) { session in
-                        SessionCardView(session: session)
-                            .environmentObject(vm)
+                // --- Needs You ---
+                if !attentionSorted.isEmpty {
+                    sectionHeader("Needs You", count: attentionSorted.count, color: Color(hex: "#00d4ff"))
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(attentionSorted) { session in
+                            SessionCardView(session: session)
+                                .environmentObject(vm)
+                        }
                     }
+                    .animation(.spring(response: 0.4, dampingFraction: 0.85), value: attentionSorted.map(\.id))
+                }
+
+                // --- Working ---
+                if !workingSorted.isEmpty {
+                    sectionHeader("Working", count: workingSorted.count, color: Color(hex: "#34d399"))
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(workingSorted) { session in
+                            SessionCardView(session: session)
+                                .environmentObject(vm)
+                        }
+                    }
+                    .animation(.spring(response: 0.4, dampingFraction: 0.85), value: workingSorted.map(\.id))
+                }
+
+                // --- Idle / Done ---
+                if !restSorted.isEmpty {
+                    sectionHeader("Idle", count: restSorted.count, color: .white.opacity(0.3))
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(restSorted) { session in
+                            SessionCardView(session: session)
+                                .environmentObject(vm)
+                        }
+                    }
+                    .animation(.spring(response: 0.4, dampingFraction: 0.85), value: restSorted.map(\.id))
                 }
             } else {
                 EmptyStateView()
                     .environmentObject(vm)
             }
         }
+    }
+
+    private func sectionHeader(_ title: String, count: Int, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Text(title.uppercased())
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(color.opacity(0.6))
+                .tracking(1.2)
+            Text("\(count)")
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .foregroundColor(color.opacity(0.35))
+            Spacer()
+        }
+        .padding(.top, 8)
     }
 }
 

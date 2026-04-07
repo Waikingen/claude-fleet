@@ -259,8 +259,7 @@ struct SessionDetailView: View {
     }
 
     private var terminalSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Terminal title bar
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Circle().fill(Color(hex: "#34d399").opacity(0.5)).frame(width: 5, height: 5)
                 Text("TERMINAL")
@@ -268,53 +267,39 @@ struct SessionDetailView: View {
                     .foregroundColor(.white.opacity(0.2))
                     .tracking(1.2)
                 Spacer()
-                Text(session.project)
-                    .font(.system(size: 9, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.15))
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Color(hex: "#0a0a12"))
+            .padding(.horizontal, 4)
 
-            // Screenshot or text fallback
+            // Screenshot — same style as focus view: rounded, shadow, contained
             if let ssPath = session.screenshot, FileManager.default.fileExists(atPath: ssPath) {
                 let _ = vm.screenshotTick
                 if let nsImage = NSImage(contentsOfFile: ssPath) {
-                    GeometryReader { geo in
-                        Image(nsImage: nsImage)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: geo.size.width, height: geo.size.height)
-                            .clipped()
-                    }
-                    .id("sidebar-ss-\(session.sessionId)-\(vm.screenshotTick)")
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .shadow(color: .black.opacity(0.4), radius: 12, y: 4)
+                        .id("sidebar-ss-\(session.sessionId)-\(vm.screenshotTick)")
                 }
             } else {
-                // Fallback: text terminal
+                // Text fallback
                 let cleaned = session.cleanLastLines
                     .components(separatedBy: "\n")
                     .map { $0.trimmingCharacters(in: .whitespaces) }
                     .filter { !$0.isEmpty && $0 != ">" }
-                    .suffix(40)
+                    .suffix(30)
                     .joined(separator: "\n")
-                ScrollView(.vertical, showsIndicators: false) {
-                    Text(cleaned.isEmpty ? "No output captured" : cleaned)
-                        .font(.system(size: 11, weight: .regular, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.65))
-                        .lineSpacing(3)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                }
-                .background(Color(hex: "#06060c"))
+                Text(cleaned.isEmpty ? "Scan to capture" : cleaned)
+                    .font(.system(size: 10.5, weight: .regular, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.5))
+                    .lineSpacing(2.5)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(hex: "#06060c"))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .shadow(color: .black.opacity(0.3), radius: 8, y: 3)
             }
         }
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(Color.white.opacity(0.05), lineWidth: 1)
-        )
-        .cornerRadius(6)
     }
 
     private var metaSection: some View {

@@ -161,6 +161,13 @@ final class FleetViewModel: ObservableObject {
                 ($0[kCGWindowOwnerName as String] as? String)?.contains("iTerm") == true
             }
 
+            // Clean up old window-* temp files before writing new ones
+            if let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
+                for f in files where f.lastPathComponent.hasPrefix("window-") {
+                    try? FileManager.default.removeItem(at: f)
+                }
+            }
+
             for window in itermWindows {
                 guard let windowId = window[kCGWindowNumber as String] as? CGWindowID,
                       let windowName = window[kCGWindowName as String] as? String else { continue }
