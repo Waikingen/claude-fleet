@@ -259,13 +259,7 @@ struct SessionDetailView: View {
     }
 
     private var terminalSection: some View {
-        let cleaned = session.cleanLastLines
-            .components(separatedBy: "\n")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty && $0 != ">" }
-            .suffix(40)
-            .joined(separator: "\n")
-        return VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             // Terminal title bar
             HStack(spacing: 6) {
                 Circle().fill(Color(hex: "#34d399").opacity(0.5)).frame(width: 5, height: 5)
@@ -282,18 +276,36 @@ struct SessionDetailView: View {
             .padding(.vertical, 6)
             .background(Color(hex: "#0a0a12"))
 
-            // Terminal content
-            ScrollView(.vertical, showsIndicators: false) {
-                Text(cleaned.isEmpty ? "No output captured" : cleaned)
-                    .font(.system(size: 11, weight: .regular, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.65))
-                    .lineSpacing(3)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
+            // Screenshot or text fallback
+            if let ssPath = session.screenshot, FileManager.default.fileExists(atPath: ssPath),
+               let nsImage = NSImage(contentsOfFile: ssPath) {
+                ScrollView([.horizontal, .vertical], showsIndicators: false) {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                }
+                .background(Color.black)
+            } else {
+                // Fallback: text terminal
+                let cleaned = session.cleanLastLines
+                    .components(separatedBy: "\n")
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty && $0 != ">" }
+                    .suffix(40)
+                    .joined(separator: "\n")
+                ScrollView(.vertical, showsIndicators: false) {
+                    Text(cleaned.isEmpty ? "No output captured" : cleaned)
+                        .font(.system(size: 11, weight: .regular, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.65))
+                        .lineSpacing(3)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                }
+                .background(Color(hex: "#06060c"))
             }
-            .background(Color(hex: "#06060c"))
         }
         .overlay(
             RoundedRectangle(cornerRadius: 6)

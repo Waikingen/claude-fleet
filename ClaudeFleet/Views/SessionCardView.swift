@@ -146,11 +146,9 @@ struct SessionCardView: View {
     }
 
     private var previewText: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // State summary — always 2 lines reserved
+        VStack(alignment: .leading, spacing: 6) {
             if isAnalyzing {
                 HStack(spacing: 8) {
-                    // Custom pulsing dot instead of system ProgressView (too dark)
                     Circle()
                         .fill(projectColor)
                         .frame(width: 8, height: 8)
@@ -162,19 +160,54 @@ struct SessionCardView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
             } else {
+                // Last output — what just happened
+                if !session.lastOutput.isEmpty {
+                    Text(session.lastOutput)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.45))
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                // State summary
                 Text(session.stateSummary)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.white.opacity(0.65))
                     .lineLimit(2)
-                    .frame(maxWidth: .infinity, minHeight: 32, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
             }
 
-            // Suggested action — always reserve space (2 lines)
-            Text(isAnalyzing ? " " : (session.needsAttention ? session.suggestedAction : " "))
-                .font(.system(size: 11))
-                .foregroundColor(projectColor.opacity(0.55))
-                .lineLimit(2)
-                .frame(maxWidth: .infinity, minHeight: 28, alignment: .topLeading)
+            // Response type + options (if paused)
+            if !isAnalyzing && !session.options.isEmpty && session.needsAttention {
+                HStack(spacing: 4) {
+                    // Type badge
+                    Text(session.responseType == "confirm" ? "CONFIRM" :
+                         session.responseType == "choose" ? "CHOOSE" : "INPUT")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(projectColor.opacity(0.6))
+                        .tracking(0.8)
+                    // Option pills
+                    ForEach(session.options, id: \.self) { opt in
+                        Text(opt)
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.7))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.white.opacity(0.06))
+                            .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+                            .cornerRadius(5)
+                    }
+                }
+            }
+
+            // Suggested action
+            if !isAnalyzing && session.needsAttention && !session.suggestedAction.isEmpty {
+                Text(session.suggestedAction)
+                    .font(.system(size: 11))
+                    .foregroundColor(projectColor.opacity(0.55))
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
         }
     }
 

@@ -34,8 +34,11 @@ struct FleetSession: Identifiable, Codable {
     let lastLines:       String
     let role:            String
     let goal:            String
-    // v3: new analysis fields
+    // v3: analysis fields
     let status:          String    // "idle" | "paused" | "working" | "done"
+    let lastOutput:      String    // last meaningful agent output
+    let responseType:    String    // "instruction" | "confirm" | "choose" | "none"
+    let options:         [String]  // visible choices: ["y","n"] or ["1","2","3"]
     let stateSummary:    String
     let progress:        Int
     let suggestedAction: String
@@ -45,6 +48,7 @@ struct FleetSession: Identifiable, Codable {
     let riskReason:      String?
     let urgency:         String    // "high" | "medium" | "low"
     let autoSent:        String?
+    let screenshot:      String?  // path to terminal screenshot PNG
 
     var id: String { sessionId }
 
@@ -89,6 +93,9 @@ struct FleetSession: Identifiable, Codable {
         case title, project, branch, path
         case lastLines       = "last_lines"
         case role, goal, status
+        case lastOutput      = "last_output"
+        case responseType    = "response_type"
+        case options
         case stateSummary    = "state_summary"
         case progress
         case suggestedAction = "suggested_action"
@@ -97,6 +104,7 @@ struct FleetSession: Identifiable, Codable {
         case riskReason      = "risk_reason"
         case urgency
         case autoSent        = "auto_sent"
+        case screenshot
     }
 
     init(from decoder: Decoder) throws {
@@ -110,6 +118,9 @@ struct FleetSession: Identifiable, Codable {
         role            = (try? c.decode(String.self, forKey: .role)) ?? "builder"
         goal            = (try? c.decode(String.self, forKey: .goal)) ?? ""
         status          = (try? c.decode(String.self, forKey: .status)) ?? "working"
+        lastOutput      = (try? c.decode(String.self, forKey: .lastOutput)) ?? ""
+        responseType    = (try? c.decode(String.self, forKey: .responseType)) ?? "none"
+        options         = (try? c.decode([String].self, forKey: .options)) ?? []
         stateSummary    = (try? c.decode(String.self, forKey: .stateSummary)) ?? ""
         progress        = (try? c.decode(Int.self, forKey: .progress)) ?? -1
         suggestedAction = (try? c.decode(String.self, forKey: .suggestedAction)) ?? ""
@@ -119,6 +130,7 @@ struct FleetSession: Identifiable, Codable {
         riskReason      = try? c.decode(String.self, forKey: .riskReason)
         urgency         = (try? c.decode(String.self, forKey: .urgency)) ?? "low"
         autoSent        = try? c.decode(String.self, forKey: .autoSent)
+        screenshot      = try? c.decode(String.self, forKey: .screenshot)
     }
 }
 
