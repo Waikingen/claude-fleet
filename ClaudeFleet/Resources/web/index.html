@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fleet</title>
+  <link rel="stylesheet" href="fleet.css">
+</head>
+<body>
+
+<!-- Background FX -->
+<div class="grid-lines"></div>
+<div class="scan-layer"></div>
+
+<!-- Corner accents -->
+<div class="ca tl"></div>
+<div class="ca tr"></div>
+<div class="ca bl"></div>
+<div class="ca br"></div>
+
+<!-- Header -->
+<header id="topbar">
+  <div class="topbar-left">
+    <span class="logo">Fleet</span>
+    <span class="mode-badge" id="mode-badge">SCOUT</span>
+    <div class="view-tabs">
+      <button class="tab active" data-view="queue">Queue</button>
+      <button class="tab" data-view="grid">Grid</button>
+      <button class="tab" data-view="mini">Mini</button>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="scout">Scout</button>
+      <button class="mode-tab" data-mode="semi">Semi</button>
+      <button class="mode-tab" data-mode="autopilot">Auto</button>
+    </div>
+    <button class="rescan-btn" id="scan-btn">↻ Scan</button>
+  </div>
+</header>
+
+<!-- Main content -->
+<main id="content">
+  <div id="queue-view" class="view active"></div>
+  <div id="grid-view" class="view"></div>
+  <div id="mini-view" class="view"></div>
+</main>
+
+<!-- Command palette -->
+<div id="palette" class="hidden">
+  <div class="palette-backdrop"></div>
+  <div class="palette-panel">
+    <input type="text" id="palette-input" placeholder="Type a command..." autocomplete="off" spellcheck="false">
+    <div id="palette-results"></div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- Footer -->
+<footer id="statusbar">
+  <div class="footer-stats">
+    <div class="fstat"><span id="stat-attention">0</span> paused</div>
+    <div class="fstat"><span id="stat-working">0</span> running</div>
+    <div class="fstat"><span id="stat-total">0</span> total</div>
+  </div>
+  <div class="shortcuts">
+    <kbd>↑↓</kbd> nav
+    <kbd>→</kbd> approve
+    <kbd>←</kbd> deny
+    <kbd>⌘K</kbd> cmd
+    <kbd>⌘↵</kbd> all
+  </div>
+</footer>
+
+<script src="fleet.js"></script>
+</body>
+</html>

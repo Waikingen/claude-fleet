@@ -11,6 +11,9 @@ targets:
     platform: macOS
     sources:
       - ClaudeFleet/
+    resources:
+      - path: ClaudeFleet/Resources/web
+        buildPhase: resources
     settings:
       base:
         PRODUCT_NAME: ClaudeFleet

@@ -1,116 +1,95 @@
 import AppKit
-import SwiftUI
-import Combine
 import ApplicationServices
 import UserNotifications
 
-@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var panel: NSPanel?
-    let viewModel = FleetViewModel()
-    private var cancellables = Set<AnyCancellable>()
+
+    let webVC = WebViewController()
+    let daemonBridge = DaemonBridge()
 
     private var localMonitor: Any?
     private var globalMonitor: Any?
 
+    // MARK: - Lifecycle
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Enforce single instance — quit if another copy is already running
+        // Single instance enforcement
         let running = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier!)
         if running.count > 1 {
             NSApp.terminate(nil)
             return
         }
 
-        // .accessory = no dock icon, no menu bar takeover
-        NSApp.setActivationPolicy(.accessory)
+        NSApp.setActivationPolicy(.regular)
 
-        // Build panel lazily — don't show it on launch
         setupPanel()
         setupStatusItem()
-        viewModel.startWatching()
         setupKeyMonitor()
-        requestAccessibilityIfNeeded()
         setupDarwinToggle()
+        requestAccessibilityIfNeeded()
+
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
-    }
 
-    // MARK: - Key monitor
-
-    func setupKeyMonitor() {
-        // Local monitor: handles keys when panel has focus
-        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self else { return event }
-            // ⇧⌥Space — toggle regardless of panel state
-            if Self.isFleetHotkey(event) {
-                DispatchQueue.main.async { self.togglePanel() }
-                return nil
-            }
-            guard let panel = self.panel, panel.isVisible else { return event }
-            let cmd = event.modifierFlags.contains(.command)
-            if cmd && event.keyCode == 13 { panel.orderOut(nil); return nil } // Cmd+W
-            if event.keyCode == 53        { panel.orderOut(nil); return nil } // Esc
-            // Enter → approve selected session
-            if event.keyCode == 36 && !cmd {
-                if let session = self.viewModel.selectedSession, session.needsReview {
-                    self.viewModel.approve(session)
-                }
-                return nil
-            }
-            // Backspace → deny selected session
-            if event.keyCode == 51 && !cmd {
-                if let session = self.viewModel.selectedSession, session.needsReview {
-                    self.viewModel.deny(session)
-                }
-                return nil
-            }
-            // Cmd+Enter → approve all safe
-            if event.keyCode == 36 && cmd {
-                self.viewModel.approveAllSafe()
-                return nil
-            }
-            return event
+        // Wire bridges
+        daemonBridge.onStateUpdate = { [weak self] (stateJSON: String) -> Void in
+            self?.webVC.pushState(stateJSON)
+        }
+        daemonBridge.onConnectionChange = { [weak self] (connected: Bool) -> Void in
+            self?.webVC.pushDaemonStatus(connected)
+        }
+        daemonBridge.onAttentionCountChange = { [weak self] (count: Int) -> Void in
+            guard let button = self?.statusItem?.button else { return }
+            self?.updateButtonAppearance(button: button, count: count)
+        }
+        webVC.onCommand = { [weak self] (cmd: [String: Any]) -> Void in
+            self?.daemonBridge.mapAndSend(cmd)
         }
 
-        // Global monitor: handles keys when any other app has focus
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, Self.isFleetHotkey(event) else { return }
-            DispatchQueue.main.async { self.togglePanel() }
-        }
+        daemonBridge.startWatching()
     }
 
-    private static func isFleetHotkey(_ event: NSEvent) -> Bool {
-        guard event.keyCode == 49 else { return false } // Space
-        let flags = event.modifierFlags
-        let hasOption  = flags.contains(.option)
-        let hasShift   = flags.contains(.shift)
-        let hasCommand = flags.contains(.command)
-        let hasControl = flags.contains(.control)
-        guard hasOption && !hasControl else { return false }
-        // Accept: ⇧⌥Space  or  ⌘⌥Space
-        return (hasShift && !hasCommand) || (hasCommand && !hasShift)
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        togglePanel()
+        return false
+    }
+
+    // MARK: - Panel
+
+    private func setupPanel() {
+        _ = webVC.view // force loadView
+
+        panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 1100, height: 700),
+            styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
+            backing: .buffered,
+            defer: true
+        )
+        panel?.contentViewController = webVC
+        panel?.title = ""
+        panel?.titlebarAppearsTransparent = true
+        panel?.backgroundColor = .clear
+        panel?.isOpaque = false
+        panel?.level = .floating
+        panel?.isMovableByWindowBackground = true
+        panel?.center()
+        panel?.setFrameAutosaveName("ClaudeFleetPanel")
+        panel?.collectionBehavior = [.canJoinAllSpaces, .stationary]
+        panel?.becomesKeyOnlyIfNeeded = true
     }
 
     // MARK: - Status item
 
-    func setupStatusItem() {
+    private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         guard let button = statusItem?.button else { return }
         updateButtonAppearance(button: button, count: 0)
 
-        // Left-click → toggle panel
         button.action = #selector(handleStatusClick)
         button.target = self
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-
-        viewModel.$pendingCount
-            .receive(on: RunLoop.main)
-            .sink { [weak self] count in
-                guard let button = self?.statusItem?.button else { return }
-                self?.updateButtonAppearance(button: button, count: count)
-            }
-            .store(in: &cancellables)
     }
 
     @objc private func handleStatusClick() {
@@ -142,16 +121,102 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         statusItem?.menu = menu
         statusItem?.button?.performClick(nil)
-        statusItem?.menu = nil  // remove after use so left-click still works normally
+        statusItem?.menu = nil
     }
 
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        togglePanel()
-        return false
+    private func updateButtonAppearance(button: NSStatusBarButton, count: Int) {
+        if count > 0 {
+            button.image = nil
+            button.title = "⚡ \(count)"
+        } else {
+            button.title = ""
+            button.image = NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: "Claude Fleet")
+            button.image?.isTemplate = true
+        }
     }
+
+    // MARK: - Key monitor
+
+    private func setupKeyMonitor() {
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else { return event }
+
+            // Global hotkey: toggle panel
+            if Self.isFleetHotkey(event) {
+                DispatchQueue.main.async { self.togglePanel() }
+                return nil
+            }
+
+            guard let panel = self.panel, panel.isVisible else { return event }
+
+            let cmd = event.modifierFlags.contains(.command)
+
+            // Cmd+W → close panel
+            if cmd && event.keyCode == 13 { panel.orderOut(nil); return nil }
+            // Esc → close panel
+            if event.keyCode == 53 { panel.orderOut(nil); return nil }
+
+            // Forward all other keyDown events to the web view
+            self.forwardKeyToWebView(event)
+            return nil
+        }
+
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, Self.isFleetHotkey(event) else { return }
+            DispatchQueue.main.async { self.togglePanel() }
+        }
+    }
+
+    private func forwardKeyToWebView(_ event: NSEvent) {
+        guard let chars = event.characters else { return }
+
+        let mods = event.modifierFlags
+        let ctrl = mods.contains(.control)
+        let alt = mods.contains(.option)
+        let shift = mods.contains(.shift)
+        let meta = mods.contains(.command)
+
+        // Escape special chars for JS string
+        let escaped = chars
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\t", with: "\\t")
+
+        let js = """
+        (function() {
+            var e = new KeyboardEvent('keydown', {
+                key: '\(escaped)',
+                keyCode: \(event.keyCode),
+                ctrlKey: \(ctrl),
+                altKey: \(alt),
+                shiftKey: \(shift),
+                metaKey: \(meta),
+                bubbles: true
+            });
+            document.dispatchEvent(e);
+        })();
+        """
+        webVC.webView?.evaluateJavaScript(js) { _, _ in }
+    }
+
+    private static func isFleetHotkey(_ event: NSEvent) -> Bool {
+        guard event.keyCode == 49 else { return false } // Space
+        let flags = event.modifierFlags
+        let hasOption  = flags.contains(.option)
+        let hasShift   = flags.contains(.shift)
+        let hasCommand = flags.contains(.command)
+        let hasControl = flags.contains(.control)
+        guard hasOption && !hasControl else { return false }
+        // ⇧⌥Space or ⌘⌥Space
+        return (hasShift && !hasCommand) || (hasCommand && !hasShift)
+    }
+
+    // MARK: - Toggle / Quit
 
     @objc func togglePanel() {
-        guard let panel = panel else { return }
+        guard let panel else { return }
         if panel.isVisible {
             panel.orderOut(nil)
         } else {
@@ -161,9 +226,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func quit() {
         if let m = globalMonitor { NSEvent.removeMonitor(m) }
-        if let m = localMonitor  { NSEvent.removeMonitor(m) }
+        if let m = localMonitor { NSEvent.removeMonitor(m) }
+        daemonBridge.stopWatching()
         NSApp.terminate(nil)
     }
+
+    // MARK: - Darwin notification
 
     private func setupDarwinToggle() {
         let name = "com.wiking.claude-fleet.toggle" as CFString
@@ -179,46 +247,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
+    // MARK: - Accessibility
+
     private func requestAccessibilityIfNeeded() {
         guard !AXIsProcessTrusted() else { return }
         let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         AXIsProcessTrustedWithOptions(opts)
-    }
-
-    private func updateButtonAppearance(button: NSStatusBarButton, count: Int) {
-        if count > 0 {
-            button.image = nil
-            button.title = "⚡ \(count)"
-        } else {
-            button.title = ""
-            button.image = NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: "Claude Fleet")
-            button.image?.isTemplate = true
-        }
-    }
-
-    // MARK: - Panel
-
-    func setupPanel() {
-        let hosting = NSHostingView(rootView: MainWindowView().environmentObject(viewModel))
-        hosting.setFrameSize(NSSize(width: 1100, height: 700))
-
-        panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 1100, height: 700),
-            styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
-            backing: .buffered,
-            defer: true  // defer=true: don't show on creation
-        )
-        panel?.contentView = hosting
-        panel?.title = ""
-        panel?.titlebarAppearsTransparent = true
-        panel?.backgroundColor = .clear
-        panel?.isOpaque = false
-        panel?.level = .floating
-        panel?.isMovableByWindowBackground = true
-        panel?.center()
-        panel?.setFrameAutosaveName("ClaudeFleetPanel")
-        panel?.collectionBehavior = [.canJoinAllSpaces, .stationary]
-        // Critical: don't become key window — never steal focus from iTerm2
-        panel?.becomesKeyOnlyIfNeeded = true
     }
 }

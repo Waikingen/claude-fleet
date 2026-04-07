@@ -7,77 +7,38 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		11289B3A2DEA95326240B16B /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 452273C589D5AAE6D9B6AE99 /* ConfigView.swift */; };
-		2AECB78CF43D2EDD855E86F2 /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E79A41EE6A9750A8C3EC02A0 /* StatusBarView.swift */; };
-		40686C4FB64C33E44919B3FF /* RolePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B581D353BCC744890B4F31C /* RolePickerView.swift */; };
 		40FA296E64EF016D466D639B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B1C3FB2140CF49BA21EEBFB /* AppDelegate.swift */; };
-		4285714FD6BFDD4143C99E75 /* FleetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D6D1AC2D8BA4C9F8E64A49 /* FleetBridge.swift */; };
-		4D5CCC122739397834A50509 /* ConfigViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C105ADEB3C98AE41C7DEACF8 /* ConfigViewModel.swift */; };
-		568AF122261BCEAD882CB133 /* SessionsGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22BB958B1BCFA9BB48EA65F4 /* SessionsGridView.swift */; };
-		569C4BB6A74949A0965CE094 /* SessionCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F849ECA67A34B9D898F7DF3 /* SessionCardView.swift */; };
-		7E50DAA4D0B308584EEC7588 /* FleetSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FCA8A9D66CA257EA85F4918 /* FleetSocket.swift */; };
-		8DE7627395F61486272EE66E /* DetailSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15BB7A713FC2D97D06B3EC6 /* DetailSidebarView.swift */; };
-		A5CB6CF7E35E5A5014235E3B /* MainWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39498E708B3E1A9891208136 /* MainWindowView.swift */; };
-		B0913B76F6910F1181FD394E /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDCD757202AB741BDCD3539 /* ToastView.swift */; };
+		7BAFB62A4A92C41884AF9646 /* fleet.css in Resources */ = {isa = PBXBuildFile; fileRef = 6773E077C6E315230DE5A8E9 /* fleet.css */; };
+		8A846FA1870B16799B232CCF /* index.html in Resources */ = {isa = PBXBuildFile; fileRef = 94C80BFD06EEB0CB7FA77D60 /* index.html */; };
 		B686E9B73C9A950CB83C65C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 817EF60BD8DAF1689CFBA307 /* Assets.xcassets */; };
-		CED0DA4AA7854C85ECB3F8FE /* FleetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E789CA2A9A8DA848185CDE9 /* FleetModels.swift */; };
-		DD00444BEA3A25A75867C2FE /* TopBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 112C3008C934B61A88467E80 /* TopBarView.swift */; };
-		DE053B3210E4C876121B8D31 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5955A8CA63CB618C9A99EB16 /* Extensions.swift */; };
-		E76A4FBC116D86C07472D680 /* FleetViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67E72ED05B63233ABD94209A /* FleetViewModel.swift */; };
-		EDDC64CA2CA7873745A8A76B /* HUDElements.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3900C4E5F32DEFBF8625E857 /* HUDElements.swift */; };
-		EEA9A77A7C364E49B8E14CAC /* ClaudeFleetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E66217924B5C6D60E5EC739B /* ClaudeFleetApp.swift */; };
+		C8107EE843E2814F3AB85AE6 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB4DFC7BAF776585A255AE8 /* main.swift */; };
+		CCE6C7A6AA9268B0B96B013B /* DaemonBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DA992A326BA0309FA669F4A /* DaemonBridge.swift */; };
+		E2AA10D319E434481F0A89A3 /* fleet.js in Resources */ = {isa = PBXBuildFile; fileRef = BABE82A93FBE0E62E3C20E12 /* fleet.js */; };
+		F4B9A04BD73E2337A3FD948E /* WebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE8D23969D1A21ACB581940 /* WebViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		112C3008C934B61A88467E80 /* TopBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopBarView.swift; sourceTree = "<group>"; };
-		1B581D353BCC744890B4F31C /* RolePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RolePickerView.swift; sourceTree = "<group>"; };
-		22BB958B1BCFA9BB48EA65F4 /* SessionsGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsGridView.swift; sourceTree = "<group>"; };
-		3900C4E5F32DEFBF8625E857 /* HUDElements.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDElements.swift; sourceTree = "<group>"; };
-		39498E708B3E1A9891208136 /* MainWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowView.swift; sourceTree = "<group>"; };
-		452273C589D5AAE6D9B6AE99 /* ConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigView.swift; sourceTree = "<group>"; };
-		5955A8CA63CB618C9A99EB16 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
-		5F849ECA67A34B9D898F7DF3 /* SessionCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCardView.swift; sourceTree = "<group>"; };
-		67E72ED05B63233ABD94209A /* FleetViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FleetViewModel.swift; sourceTree = "<group>"; };
-		6E789CA2A9A8DA848185CDE9 /* FleetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FleetModels.swift; sourceTree = "<group>"; };
+		3DA992A326BA0309FA669F4A /* DaemonBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonBridge.swift; sourceTree = "<group>"; };
+		6773E077C6E315230DE5A8E9 /* fleet.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = fleet.css; sourceTree = "<group>"; };
 		817EF60BD8DAF1689CFBA307 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		94C80BFD06EEB0CB7FA77D60 /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
 		9B1C3FB2140CF49BA21EEBFB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		9FCA8A9D66CA257EA85F4918 /* FleetSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FleetSocket.swift; sourceTree = "<group>"; };
 		AC6E19217394110F1C3FEA93 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		B15BB7A713FC2D97D06B3EC6 /* DetailSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailSidebarView.swift; sourceTree = "<group>"; };
+		ACB4DFC7BAF776585A255AE8 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		BABE82A93FBE0E62E3C20E12 /* fleet.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = fleet.js; sourceTree = "<group>"; };
 		BF35430061F5C5E639D0F76A /* ClaudeFleet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeFleet.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		C105ADEB3C98AE41C7DEACF8 /* ConfigViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigViewModel.swift; sourceTree = "<group>"; };
-		C3D6D1AC2D8BA4C9F8E64A49 /* FleetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FleetBridge.swift; sourceTree = "<group>"; };
-		CCDCD757202AB741BDCD3539 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
-		E66217924B5C6D60E5EC739B /* ClaudeFleetApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeFleetApp.swift; sourceTree = "<group>"; };
-		E79A41EE6A9750A8C3EC02A0 /* StatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarView.swift; sourceTree = "<group>"; };
+		FAE8D23969D1A21ACB581940 /* WebViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		17391053543FF1EA5FFE168A /* Services */ = {
+		014E0BF3B6DC8C7FE99E4CE1 /* web */ = {
 			isa = PBXGroup;
 			children = (
-				C3D6D1AC2D8BA4C9F8E64A49 /* FleetBridge.swift */,
-				9FCA8A9D66CA257EA85F4918 /* FleetSocket.swift */,
+				6773E077C6E315230DE5A8E9 /* fleet.css */,
+				BABE82A93FBE0E62E3C20E12 /* fleet.js */,
+				94C80BFD06EEB0CB7FA77D60 /* index.html */,
 			);
-			path = Services;
-			sourceTree = "<group>";
-		};
-		61F52BDB908B2F487875E742 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				452273C589D5AAE6D9B6AE99 /* ConfigView.swift */,
-				B15BB7A713FC2D97D06B3EC6 /* DetailSidebarView.swift */,
-				5955A8CA63CB618C9A99EB16 /* Extensions.swift */,
-				3900C4E5F32DEFBF8625E857 /* HUDElements.swift */,
-				39498E708B3E1A9891208136 /* MainWindowView.swift */,
-				1B581D353BCC744890B4F31C /* RolePickerView.swift */,
-				5F849ECA67A34B9D898F7DF3 /* SessionCardView.swift */,
-				22BB958B1BCFA9BB48EA65F4 /* SessionsGridView.swift */,
-				E79A41EE6A9750A8C3EC02A0 /* StatusBarView.swift */,
-				CCDCD757202AB741BDCD3539 /* ToastView.swift */,
-				112C3008C934B61A88467E80 /* TopBarView.swift */,
-			);
-			path = Views;
+			path = web;
 			sourceTree = "<group>";
 		};
 		8FD1DBD5F19A62350219AB5A /* Resources */ = {
@@ -85,25 +46,9 @@
 			children = (
 				817EF60BD8DAF1689CFBA307 /* Assets.xcassets */,
 				AC6E19217394110F1C3FEA93 /* Info.plist */,
+				014E0BF3B6DC8C7FE99E4CE1 /* web */,
 			);
 			path = Resources;
-			sourceTree = "<group>";
-		};
-		B45791CFB5A02D87C9CAE9C8 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				6E789CA2A9A8DA848185CDE9 /* FleetModels.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		B50F65763933A21B5D530E95 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				C105ADEB3C98AE41C7DEACF8 /* ConfigViewModel.swift */,
-				67E72ED05B63233ABD94209A /* FleetViewModel.swift */,
-			);
-			path = ViewModels;
 			sourceTree = "<group>";
 		};
 		F0CEDD56F02768359AB264A6 /* Products */ = {
@@ -118,12 +63,10 @@
 			isa = PBXGroup;
 			children = (
 				9B1C3FB2140CF49BA21EEBFB /* AppDelegate.swift */,
-				E66217924B5C6D60E5EC739B /* ClaudeFleetApp.swift */,
-				B45791CFB5A02D87C9CAE9C8 /* Models */,
+				3DA992A326BA0309FA669F4A /* DaemonBridge.swift */,
+				ACB4DFC7BAF776585A255AE8 /* main.swift */,
+				FAE8D23969D1A21ACB581940 /* WebViewController.swift */,
 				8FD1DBD5F19A62350219AB5A /* Resources */,
-				17391053543FF1EA5FFE168A /* Services */,
-				B50F65763933A21B5D530E95 /* ViewModels */,
-				61F52BDB908B2F487875E742 /* Views */,
 			);
 			path = ClaudeFleet;
 			sourceTree = "<group>";
@@ -197,6 +140,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				B686E9B73C9A950CB83C65C1 /* Assets.xcassets in Resources */,
+				7BAFB62A4A92C41884AF9646 /* fleet.css in Resources */,
+				E2AA10D319E434481F0A89A3 /* fleet.js in Resources */,
+				8A846FA1870B16799B232CCF /* index.html in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -208,23 +154,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				40FA296E64EF016D466D639B /* AppDelegate.swift in Sources */,
-				EEA9A77A7C364E49B8E14CAC /* ClaudeFleetApp.swift in Sources */,
-				11289B3A2DEA95326240B16B /* ConfigView.swift in Sources */,
-				4D5CCC122739397834A50509 /* ConfigViewModel.swift in Sources */,
-				8DE7627395F61486272EE66E /* DetailSidebarView.swift in Sources */,
-				DE053B3210E4C876121B8D31 /* Extensions.swift in Sources */,
-				4285714FD6BFDD4143C99E75 /* FleetBridge.swift in Sources */,
-				CED0DA4AA7854C85ECB3F8FE /* FleetModels.swift in Sources */,
-				7E50DAA4D0B308584EEC7588 /* FleetSocket.swift in Sources */,
-				E76A4FBC116D86C07472D680 /* FleetViewModel.swift in Sources */,
-				EDDC64CA2CA7873745A8A76B /* HUDElements.swift in Sources */,
-				A5CB6CF7E35E5A5014235E3B /* MainWindowView.swift in Sources */,
-				40686C4FB64C33E44919B3FF /* RolePickerView.swift in Sources */,
-				569C4BB6A74949A0965CE094 /* SessionCardView.swift in Sources */,
-				568AF122261BCEAD882CB133 /* SessionsGridView.swift in Sources */,
-				2AECB78CF43D2EDD855E86F2 /* StatusBarView.swift in Sources */,
-				B0913B76F6910F1181FD394E /* ToastView.swift in Sources */,
-				DD00444BEA3A25A75867C2FE /* TopBarView.swift in Sources */,
+				CCE6C7A6AA9268B0B96B013B /* DaemonBridge.swift in Sources */,
+				F4B9A04BD73E2337A3FD948E /* WebViewController.swift in Sources */,
+				C8107EE843E2814F3AB85AE6 /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
