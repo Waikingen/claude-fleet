@@ -115,21 +115,21 @@ struct HUDCorners: View {
 
 struct PendingBorderModifier: ViewModifier {
     let cornerRadius: CGFloat
-    @State private var phase: CGFloat = 0
+    var color: Color = Color(hex: "#00d4ff")
 
     func body(content: Content) -> some View {
         content.overlay(
             TimelineView(.animation) { timeline in
                 let t = timeline.date.timeIntervalSinceReferenceDate
-                let p = CGFloat(t.truncatingRemainder(dividingBy: 2.0) / 2.0)
+                let p = CGFloat(t.truncatingRemainder(dividingBy: 5.0) / 5.0)  // 5s cycle (was 2s)
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .stroke(lineWidth: 1)
                     .foregroundStyle(
                         AngularGradient(
                             stops: [
-                                .init(color: Color(hex: "#00d4ff").opacity(0.0),  location: max(0, p - 0.15)),
-                                .init(color: Color(hex: "#00d4ff").opacity(0.7),  location: p),
-                                .init(color: Color(hex: "#00d4ff").opacity(0.0),  location: min(1, p + 0.15)),
+                                .init(color: color.opacity(0.0),  location: max(0, p - 0.12)),
+                                .init(color: color.opacity(0.55), location: p),
+                                .init(color: color.opacity(0.0),  location: min(1, p + 0.12)),
                             ],
                             center: .center,
                             startAngle: .degrees(0),
@@ -142,8 +142,8 @@ struct PendingBorderModifier: ViewModifier {
 }
 
 extension View {
-    func pendingBorder(cornerRadius: CGFloat = 14) -> some View {
-        modifier(PendingBorderModifier(cornerRadius: cornerRadius))
+    func pendingBorder(cornerRadius: CGFloat = 14, color: Color = Color(hex: "#00d4ff")) -> some View {
+        modifier(PendingBorderModifier(cornerRadius: cornerRadius, color: color))
     }
 }
 

@@ -32,7 +32,7 @@ struct SessionCardView: View {
         .scaleEffect(isHovered ? 1.005 : 1.0)
         .animation(.spring(response: 0.2), value: isHovered)
         .animation(.spring(response: 0.2), value: isSelected)
-        .ifCondition(session.needsAttention && actionFlash == nil) { $0.pendingBorder() }
+        .ifCondition(session.needsAttention && actionFlash == nil) { $0.pendingBorder(color: projectColor) }
         .onTapGesture { vm.selectSession(session.id) }
         .onHover { isHovered = $0 }
         .overlay(flashOverlay)
