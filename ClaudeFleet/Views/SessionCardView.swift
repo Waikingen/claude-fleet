@@ -34,6 +34,11 @@ struct SessionCardView: View {
         .animation(.spring(response: 0.2), value: isSelected)
         .ifCondition(session.needsAttention && actionFlash == nil) { $0.pendingBorder(color: projectColor) }
         .onTapGesture { vm.selectSession(session.id) }
+        .onTapGesture(count: 2) {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                vm.focusedId = session.id
+            }
+        }
         .onHover { isHovered = $0 }
         .overlay(flashOverlay)
         .overlay(session.needsAttention ? AnyView(HUDCorners(size: 10, thickness: 1.0, color: projectColor.opacity(0.35))) : AnyView(EmptyView()))

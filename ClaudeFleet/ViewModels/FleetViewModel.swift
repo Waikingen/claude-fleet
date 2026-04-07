@@ -20,12 +20,14 @@ final class FleetViewModel: ObservableObject {
     @Published var toast:         ToastMessage? = nil
     @Published var lastScanDate:  Date? = nil
     @Published var globalRole:    String = "builder"
+    @Published var focusedId:     String? = nil  // double-click → focused agent view
 
     // MARK: - Derived
 
     var attentionSessions: [FleetSession] { sessions.filter { $0.needsAttention } }
     var workingSessions:   [FleetSession] { sessions.filter { $0.isWorking } }
     var selectedSession:   FleetSession?  { sessions.first { $0.id == selectedId } }
+    var focusedSession:    FleetSession?  { sessions.first { $0.id == focusedId } }
 
     // MARK: - Private
 

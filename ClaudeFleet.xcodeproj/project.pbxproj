@@ -13,6 +13,7 @@
 		40FA296E64EF016D466D639B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B1C3FB2140CF49BA21EEBFB /* AppDelegate.swift */; };
 		4285714FD6BFDD4143C99E75 /* FleetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D6D1AC2D8BA4C9F8E64A49 /* FleetBridge.swift */; };
 		4D5CCC122739397834A50509 /* ConfigViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C105ADEB3C98AE41C7DEACF8 /* ConfigViewModel.swift */; };
+		4D724C4AF745D34781691912 /* AgentFocusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF3BD0488C45A86D7F9863B1 /* AgentFocusView.swift */; };
 		568AF122261BCEAD882CB133 /* SessionsGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22BB958B1BCFA9BB48EA65F4 /* SessionsGridView.swift */; };
 		569C4BB6A74949A0965CE094 /* SessionCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F849ECA67A34B9D898F7DF3 /* SessionCardView.swift */; };
 		7E50DAA4D0B308584EEC7588 /* FleetSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FCA8A9D66CA257EA85F4918 /* FleetSocket.swift */; };
@@ -50,6 +51,7 @@
 		CCDCD757202AB741BDCD3539 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		E66217924B5C6D60E5EC739B /* ClaudeFleetApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeFleetApp.swift; sourceTree = "<group>"; };
 		E79A41EE6A9750A8C3EC02A0 /* StatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarView.swift; sourceTree = "<group>"; };
+		EF3BD0488C45A86D7F9863B1 /* AgentFocusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentFocusView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -65,6 +67,7 @@
 		61F52BDB908B2F487875E742 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				EF3BD0488C45A86D7F9863B1 /* AgentFocusView.swift */,
 				452273C589D5AAE6D9B6AE99 /* ConfigView.swift */,
 				B15BB7A713FC2D97D06B3EC6 /* DetailSidebarView.swift */,
 				5955A8CA63CB618C9A99EB16 /* Extensions.swift */,
@@ -207,6 +210,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4D724C4AF745D34781691912 /* AgentFocusView.swift in Sources */,
 				40FA296E64EF016D466D639B /* AppDelegate.swift in Sources */,
 				EEA9A77A7C364E49B8E14CAC /* ClaudeFleetApp.swift in Sources */,
 				11289B3A2DEA95326240B16B /* ConfigView.swift in Sources */,

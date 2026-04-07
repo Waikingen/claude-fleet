@@ -46,32 +46,34 @@ struct MainWindowView: View {
                 Divider()
                     .background(Color.white.opacity(0.06))
 
-                HStack(spacing: 0) {
-                    // Main content
-                    ZStack {
-                        LineGridBackground()
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                // Click on empty grid background → close panel
-                                NSApp.keyWindow?.orderOut(nil)
+                Group {
+                    if let focused = vm.focusedSession {
+                        AgentFocusView(session: focused)
+                            .environmentObject(vm)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    } else {
+                        HStack(spacing: 0) {
+                            ZStack {
+                                LineGridBackground()
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { NSApp.keyWindow?.orderOut(nil) }
+                                FleetScrollView {
+                                    SessionsGridView()
+                                        .environmentObject(vm)
+                                        .padding(20)
+                                }
                             }
-                        FleetScrollView {
-                            SessionsGridView()
+                            .frame(maxWidth: .infinity)
+                            .clipped()
+
+                            Divider().background(Color.white.opacity(0.06))
+
+                            DetailSidebarView()
                                 .environmentObject(vm)
-                                .padding(20)
+                                .frame(width: 440)
                         }
+                        .transition(.opacity)
                     }
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-
-                    // Sidebar divider
-                    Divider()
-                        .background(Color.white.opacity(0.06))
-
-                    // Detail sidebar
-                    DetailSidebarView()
-                        .environmentObject(vm)
-                        .frame(width: 440)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
