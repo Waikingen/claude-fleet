@@ -55,7 +55,6 @@ struct MainWindowView: View {
                                 .environmentObject(vm)
                                 .padding(20)
                         }
-                        ScanBeamView()
                     }
                     .frame(maxWidth: .infinity)
                     .clipped()
