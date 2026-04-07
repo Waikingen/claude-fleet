@@ -69,37 +69,8 @@ struct TopBarView: View {
 
             divider
 
-            // Global role picker
-            Menu {
-                ForEach(FleetRole.all) { role in
-                    Button(action: { vm.setGlobalRole(role.id) }) {
-                        HStack {
-                            Text(role.name)
-                            if vm.globalRole == role.id {
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                    }
-                }
-            } label: {
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(Color(hex: "#00d4ff"))
-                        .frame(width: 5, height: 5)
-                    Text(FleetRole.named(vm.globalRole).name)
-                        .font(.system(size: 11, weight: .semibold))
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 8, weight: .bold))
-                }
-                .foregroundColor(.white.opacity(0.7))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Color.white.opacity(0.06))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.1), lineWidth: 0.5))
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
+            // Global role picker (custom popover, not system Menu)
+            RoleDropdown(globalRole: $vm.globalRole, onSelect: { vm.setGlobalRole($0) })
 
             divider
 
@@ -230,5 +201,72 @@ struct ScanButton: View {
         }
         .buttonStyle(.plain)
         .disabled(vm.isScanning)
+    }
+}
+
+// MARK: - Custom dark role dropdown (replaces system Menu)
+
+struct RoleDropdown: View {
+    @Binding var globalRole: String
+    let onSelect: (String) -> Void
+    @State private var isOpen = false
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            // Trigger button
+            Button(action: { isOpen.toggle() }) {
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(Color(hex: "#00d4ff"))
+                        .frame(width: 5, height: 5)
+                    Text(FleetRole.named(globalRole).name)
+                        .font(.system(size: 11, weight: .semibold))
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                        .rotationEffect(.degrees(isOpen ? 180 : 0))
+                }
+                .foregroundColor(.white.opacity(0.7))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color.white.opacity(isOpen ? 0.1 : 0.06))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $isOpen, arrowEdge: .bottom) {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(FleetRole.all) { role in
+                        Button(action: {
+                            onSelect(role.id)
+                            isOpen = false
+                        }) {
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(globalRole == role.id ? Color(hex: "#00d4ff") : Color.white.opacity(0.15))
+                                    .frame(width: 6, height: 6)
+                                Text(role.name)
+                                    .font(.system(size: 12, weight: globalRole == role.id ? .semibold : .regular))
+                                    .foregroundColor(globalRole == role.id ? .white : .white.opacity(0.6))
+                                Spacer()
+                                Text(role.description.prefix(25))
+                                    .font(.system(size: 9))
+                                    .foregroundColor(.white.opacity(0.2))
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(globalRole == role.id ? Color.white.opacity(0.06) : Color.clear)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        if role.id != FleetRole.all.last?.id {
+                            Divider().background(Color.white.opacity(0.06))
+                        }
+                    }
+                }
+                .frame(width: 280)
+                .background(Color(hex: "#0d1528"))
+            }
+        }
+        .animation(.easeOut(duration: 0.15), value: isOpen)
     }
 }

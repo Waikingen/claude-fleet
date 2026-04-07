@@ -99,9 +99,10 @@ struct HUDCorners: View {
 
     private func corner() -> some View {
         Path { path in
+            let r: CGFloat = 6  // corner radius
             path.move(to: CGPoint(x: 0, y: size))
-            path.addLine(to: CGPoint(x: 0, y: 3))
-            path.addQuadCurve(to: CGPoint(x: 3, y: 0), control: CGPoint(x: 0, y: 0))
+            path.addLine(to: CGPoint(x: 0, y: r))
+            path.addQuadCurve(to: CGPoint(x: r, y: 0), control: CGPoint(x: 0, y: 0))
             path.addLine(to: CGPoint(x: size, y: 0))
         }
         .stroke(color, lineWidth: thickness)
