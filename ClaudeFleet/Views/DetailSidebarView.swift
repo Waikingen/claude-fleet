@@ -277,16 +277,18 @@ struct SessionDetailView: View {
             .background(Color(hex: "#0a0a12"))
 
             // Screenshot or text fallback
-            if let ssPath = session.screenshot, FileManager.default.fileExists(atPath: ssPath),
-               let nsImage = NSImage(contentsOfFile: ssPath) {
-                GeometryReader { geo in
-                    Image(nsImage: nsImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: geo.size.width, height: geo.size.height)
-                        .clipped()
+            if let ssPath = session.screenshot, FileManager.default.fileExists(atPath: ssPath) {
+                let _ = vm.screenshotTick
+                if let nsImage = NSImage(contentsOfFile: ssPath) {
+                    GeometryReader { geo in
+                        Image(nsImage: nsImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
+                    }
+                    .id("sidebar-ss-\(session.sessionId)-\(vm.screenshotTick)")
                 }
-                .background(Color.black)
             } else {
                 // Fallback: text terminal
                 let cleaned = session.cleanLastLines

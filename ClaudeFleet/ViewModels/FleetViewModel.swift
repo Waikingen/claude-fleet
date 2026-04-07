@@ -21,6 +21,7 @@ final class FleetViewModel: ObservableObject {
     @Published var lastScanDate:  Date? = nil
     @Published var globalRole:    String = "builder"
     @Published var focusedId:     String? = nil  // double-click → focused agent view
+    @Published var screenshotTick: Int = 0       // increments on each capture to force image reload
 
     // MARK: - Derived
 
@@ -43,12 +44,19 @@ final class FleetViewModel: ObservableObject {
 
     // MARK: - Watching
 
+    private var screenshotTimer: AnyCancellable?
+
     func startWatching() {
         bridge.startWatching { }
         bridge.stateChanges
             .receive(on: RunLoop.main)
             .sink { [weak self] state in self?.applyState(state) }
             .store(in: &cancellables)
+
+        // Capture screenshots every 4 seconds
+        screenshotTimer = Timer.publish(every: 4, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in self?.captureScreenshots() }
     }
 
     // MARK: - Actions
@@ -186,6 +194,9 @@ final class FleetViewModel: ObservableObject {
                         }
                     }
                 }
+            }
+            DispatchQueue.main.async { [weak self] in
+                self?.screenshotTick += 1
             }
         }
     }

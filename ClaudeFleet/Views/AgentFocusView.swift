@@ -377,16 +377,19 @@ struct AgentFocusView: View {
             .padding(.horizontal, 20)
             .padding(.top, 16)
 
-            // Screenshot — clean, no box, just shadow
+            // Screenshot — live updating via screenshotTick
             if let ssPath = session.screenshot,
-               FileManager.default.fileExists(atPath: ssPath),
-               let nsImage = NSImage(contentsOfFile: ssPath) {
-                Image(nsImage: nsImage)
-                    .resizable()
-                    .scaledToFit()
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .shadow(color: .black.opacity(0.5), radius: 20, y: 8)
-                    .padding(.horizontal, 16)
+               FileManager.default.fileExists(atPath: ssPath) {
+                let _ = vm.screenshotTick // force redraw on tick
+                if let nsImage = NSImage(contentsOfFile: ssPath) {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .shadow(color: .black.opacity(0.5), radius: 20, y: 8)
+                        .padding(.horizontal, 16)
+                        .id("ss-\(session.sessionId)-\(vm.screenshotTick)")
+                }
             }
 
             // Terminal text
