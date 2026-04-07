@@ -32,7 +32,6 @@ struct DetailSidebarView: View {
 
             Divider().background(Color.white.opacity(0.06))
 
-            // Content
             if let session = vm.selectedSession {
                 SessionDetailView(session: session)
                     .environmentObject(vm)
@@ -56,327 +55,362 @@ struct DetailSidebarView: View {
     }
 }
 
-// MARK: - Session detail
+// MARK: - Session detail (clearance-style layout)
 
 struct SessionDetailView: View {
     let session: FleetSession
     @EnvironmentObject var vm: FleetViewModel
-    @State private var goalText: String = ""
-    @State private var isEditingGoal: Bool = false
+    @State private var terminalExpanded = false
+    @State private var detailsExpanded = false
+
+    private var projectColor: Color {
+        let colors: [Color] = [
+            Color(hex: "#00d4ff"), Color(hex: "#7c3aed"),
+            Color(hex: "#00ff88"), Color(hex: "#ff6b35"),
+            Color(hex: "#4d9fff"), Color(hex: "#ff2d78"),
+            Color(hex: "#fbbf24"), Color(hex: "#34d399"),
+        ]
+        return colors[abs(session.project.hashValue) % colors.count]
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Compact header
-            VStack(alignment: .leading, spacing: 12) {
-                sessionTitle
-                goalSection
-                if session.risk { riskBlock }
-                taskSection
-                if !session.suggestedAction.isEmpty { suggestedSection }
-                confidenceSection
-                metaSection
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 12)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 16) {
+                    // 1. Identity (tiny)
+                    sessionHeader
 
-            Divider().background(Color.white.opacity(0.06))
-
-            // Terminal takes ALL remaining space
-            terminalSection
-                .frame(maxHeight: .infinity)
-
-            // Action footer
-            if session.needsAttention {
-                Divider().background(Color.white.opacity(0.06))
-
-                HStack(spacing: 8) {
-                    Button("✕  Deny") {
-                        vm.deny(session)
-                        vm.selectSession(nil)
+                    // 2. THE ASK — what does this agent want?
+                    if let prompt = session.suggestedPrompt {
+                        askBlock(prompt: prompt)
+                    } else if session.needsAttention {
+                        needsInstructionBlock
                     }
-                    .buttonStyle(SidebarDenyStyle())
 
-                    Button("✓  Approve") {
-                        vm.approve(session)
-                        vm.selectSession(nil)
+                    // 3. Context — one-line summary of where we are
+                    if !session.stateSummary.isEmpty {
+                        Text(session.stateSummary)
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.4))
+                            .lineSpacing(2)
+                            .lineLimit(3)
                     }
-                    .buttonStyle(SidebarApproveStyle())
+
+                    // 4. Risk warning (only when risky)
+                    if session.risk { riskBlock }
+
+                    // 5. Signal badge — safe / review / risky
+                    signalBadge
+
+                    // 6. Terminal (collapsed by default)
+                    terminalDisclosure
+
+                    // 7. Session details (collapsed by default)
+                    detailsDisclosure
                 }
                 .padding(16)
+            }
+
+            // Pinned action footer — always visible, never scrolls away
+            if session.needsAttention {
+                Divider().background(Color.white.opacity(0.06))
+                actionFooter
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Subviews
+    // MARK: - Session header
 
-    private var sessionTitle: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(session.displayFile)
-                .font(.system(size: 15, weight: .bold))
+    private var sessionHeader: some View {
+        HStack(spacing: 6) {
+            Text(session.project)
+                .font(.system(size: 14, weight: .bold))
                 .foregroundColor(.white)
-                .tracking(-0.3)
-            Text(session.path)
-                .font(.system(size: 10.5, design: .monospaced))
-                .foregroundColor(.white.opacity(0.28))
-                .lineLimit(2)
+            if !session.displayBranch.isEmpty {
+                Text("·")
+                    .foregroundColor(.white.opacity(0.25))
+                Text(session.displayBranch)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(projectColor.opacity(0.7))
+            }
+            Spacer()
+            Text(FleetRole.named(session.role).name)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundColor(projectColor.opacity(0.6))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(projectColor.opacity(0.07))
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(projectColor.opacity(0.15), lineWidth: 0.5))
         }
     }
+
+    // MARK: - The Ask (hero block — first thing you read)
+
+    private func askBlock(prompt: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("WILL SEND")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundColor(Color(hex: "#00d4ff").opacity(0.4))
+                .tracking(1)
+
+            Text(prompt)
+                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .foregroundColor(Color(hex: "#00d4ff").opacity(0.9))
+                .lineSpacing(4)
+                .textSelection(.enabled)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(hex: "#00d4ff").opacity(0.05))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color(hex: "#00d4ff").opacity(0.2), lineWidth: 1)
+        )
+        .cornerRadius(10)
+    }
+
+    private var needsInstructionBlock: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("NEEDS INSTRUCTION")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundColor(projectColor.opacity(0.5))
+                .tracking(1)
+            Text("Session is idle — waiting for a prompt")
+                .font(.system(size: 12))
+                .foregroundColor(.white.opacity(0.3))
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(projectColor.opacity(0.04))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(projectColor.opacity(0.15), lineWidth: 1)
+        )
+        .cornerRadius(10)
+    }
+
+    // MARK: - Risk
 
     @ViewBuilder
     private var riskBlock: some View {
         if let reason = session.riskReason {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 5) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 11))
-                        .foregroundColor(Color(hex: "#ff6040"))
-                    Text("Risk Detected")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(Color(hex: "#ff6040"))
-                }
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(hex: "#ff6040"))
                 Text(reason)
                     .font(.system(size: 11.5))
                     .foregroundColor(Color(hex: "#ff9070").opacity(0.85))
                     .lineLimit(3)
             }
             .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(hex: "#ff3c1e").opacity(0.06))
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#ff5032").opacity(0.2), lineWidth: 1))
             .cornerRadius(8)
         }
     }
 
-    private var goalSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("PROJECT GOAL")
-                    .font(.system(size: 9, weight: .bold))
+    // MARK: - Signal badge (replaces confidence bar)
+
+    private var signalBadge: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(signalColor)
+                .frame(width: 6, height: 6)
+                .shadow(color: signalColor.opacity(0.6), radius: 3)
+            Text(signalLabel)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(signalColor.opacity(0.8))
+            Spacer()
+            if session.progress >= 0 {
+                Text("\(session.progress)%")
+                    .font(.system(size: 10, design: .monospaced))
                     .foregroundColor(.white.opacity(0.2))
-                    .tracking(1.2)
-                Spacer()
-                Button(isEditingGoal ? "Save" : "Edit") {
-                    if isEditingGoal {
-                        vm.setGoal(project: session.project, goal: goalText)
-                        isEditingGoal = false
-                    } else {
-                        goalText = session.goal
-                        isEditingGoal = true
-                    }
-                }
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(Color(hex: "#00d4ff").opacity(0.6))
-                .buttonStyle(.plain)
-            }
-
-            if isEditingGoal {
-                TextEditor(text: $goalText)
-                    .font(.system(size: 11))
-                    .foregroundColor(.white.opacity(0.8))
-                    .scrollContentBackground(.hidden)
-                    .padding(8)
-                    .frame(height: 60)
-                    .background(Color.black.opacity(0.3))
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#00d4ff").opacity(0.2), lineWidth: 1))
-                    .cornerRadius(6)
-            } else {
-                Text(session.goal.isEmpty ? "No goal set — click Edit to add one" : session.goal)
-                    .font(.system(size: 11))
-                    .foregroundColor(session.goal.isEmpty ? .white.opacity(0.2) : .white.opacity(0.5))
-                    .lineLimit(3)
             }
         }
     }
 
-    private var taskSection: some View {
-        DetailSection(label: "Task") {
-            Text(session.stateSummary)
-                .font(.system(size: 12))
-                .foregroundColor(.white.opacity(0.5))
-                .lineSpacing(3)
-        }
-    }
-
-    private var suggestedSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("SUGGESTED NEXT STEP")
-                .font(.system(size: 9, weight: .bold))
-                .foregroundColor(.white.opacity(0.2))
-                .tracking(1.2)
-
-            // Why — the reasoning
-            Text(session.suggestedAction)
-                .font(.system(size: 12))
-                .foregroundColor(.white.opacity(0.55))
-                .lineSpacing(2)
-
-            // What — the exact command that will be sent
-            if let prompt = session.suggestedPrompt {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 5) {
-                        Text("WILL SEND")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundColor(Color(hex: "#00d4ff").opacity(0.4))
-                            .tracking(1)
-                        Spacer()
-                        Image(systemName: "arrow.right.circle.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(Color(hex: "#00d4ff").opacity(0.3))
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.top, 8)
-                    .padding(.bottom, 4)
-
-                    Text(prompt)
-                        .font(.system(size: 11.5, weight: .medium, design: .monospaced))
-                        .foregroundColor(Color(hex: "#00d4ff").opacity(0.85))
-                        .lineSpacing(3)
-                        .padding(.horizontal, 10)
-                        .padding(.bottom, 10)
-                        .textSelection(.enabled)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(hex: "#00d4ff").opacity(0.04))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(hex: "#00d4ff").opacity(0.15), lineWidth: 1)
-                )
-                .cornerRadius(8)
-            }
-        }
-    }
-
-    private var confidenceSection: some View {
-        DetailSection(label: "Confidence") {
-            HStack(spacing: 8) {
-                ConfidenceBar(value: session.confidence)
-                Text(String(format: "%.0f%%", session.confidence * 100))
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(confidenceColor(session.confidence))
-            }
-        }
-    }
-
-    private var terminalSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Circle().fill(Color(hex: "#34d399").opacity(0.5)).frame(width: 5, height: 5)
-                Text("TERMINAL")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(.white.opacity(0.2))
-                    .tracking(1.2)
-                Spacer()
-            }
-            .padding(.horizontal, 4)
-
-            // Screenshot — same style as focus view: rounded, shadow, contained
-            if let ssPath = session.screenshot, FileManager.default.fileExists(atPath: ssPath) {
-                let _ = vm.screenshotTick
-                if let nsImage = NSImage(contentsOfFile: ssPath) {
-                    Image(nsImage: nsImage)
-                        .resizable()
-                        .scaledToFit()
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .shadow(color: .black.opacity(0.4), radius: 12, y: 4)
-                        .id("sidebar-ss-\(session.sessionId)-\(vm.screenshotTick)")
-                }
-            } else {
-                // Text fallback
-                let cleaned = session.cleanLastLines
-                    .components(separatedBy: "\n")
-                    .map { $0.trimmingCharacters(in: .whitespaces) }
-                    .filter { !$0.isEmpty && $0 != ">" }
-                    .suffix(30)
-                    .joined(separator: "\n")
-                Text(cleaned.isEmpty ? "Scan to capture" : cleaned)
-                    .font(.system(size: 10.5, weight: .regular, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.5))
-                    .lineSpacing(2.5)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(hex: "#06060c"))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .shadow(color: .black.opacity(0.3), radius: 8, y: 3)
-            }
-        }
-    }
-
-    private var metaSection: some View {
-        DetailSection(label: "Session") {
-            VStack(alignment: .leading, spacing: 3) {
-                MetaRow(key: "branch", value: session.branch)
-                MetaRow(key: "path",   value: session.path)
-                MetaRow(key: "status", value: session.status)
-                if !session.progressLabel.isEmpty {
-                    MetaRow(key: "progress", value: session.progressLabel)
-                }
-                // Preview URL (portless — project.localhost:1355)
-                HStack(spacing: 4) {
-                    Text("preview")
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.25))
-                        .frame(width: 60, alignment: .leading)
-                    Button(action: {
-                        if let url = URL(string: session.portlessURL) {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }) {
-                        Text(session.portlessURL)
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundColor(Color(hex: "#00d4ff").opacity(0.7))
-                            .underline()
-                            .lineLimit(1)
-                    }
-                    .buttonStyle(.plain)
-                }
-                // Portless dashboard
-                HStack(spacing: 4) {
-                    Text("ports")
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.25))
-                        .frame(width: 60, alignment: .leading)
-                    Button(action: {
-                        if let url = URL(string: "http://localhost:1355") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }) {
-                        Text("localhost:1355")
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundColor(Color(hex: "#00d4ff").opacity(0.5))
-                            .underline()
-                            .lineLimit(1)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    private func confidenceColor(_ v: Double) -> Color {
-        if v >= 0.8 { return Color(hex: "#34d399") }
-        if v >= 0.5 { return Color(hex: "#fbbf24") }
+    private var signalColor: Color {
+        if session.risk { return Color(hex: "#ff6040") }
+        if session.confidence >= 0.75 { return Color(hex: "#34d399") }
+        if session.confidence >= 0.5 { return Color(hex: "#fbbf24") }
         return Color(hex: "#ff6040")
     }
-}
 
-// MARK: - Helpers
+    private var signalLabel: String {
+        if session.risk { return "Risky — review carefully" }
+        if session.confidence >= 0.75 { return "Safe to approve" }
+        if session.confidence >= 0.5 { return "Review recommended" }
+        return "Low confidence — review"
+    }
 
-struct DetailSection<Content: View>: View {
-    let label: String
-    @ViewBuilder let content: () -> Content
+    // MARK: - Terminal (collapsed by default)
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(label)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.white.opacity(0.2))
-                .tracking(0.8)
-                .textCase(.uppercase)
-            content()
+    private var terminalDisclosure: some View {
+        VStack(spacing: 0) {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) { terminalExpanded.toggle() }
+            }) {
+                HStack(spacing: 6) {
+                    Image(systemName: terminalExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.25))
+                        .frame(width: 12)
+                    Circle().fill(Color(hex: "#34d399").opacity(0.5)).frame(width: 5, height: 5)
+                    Text("TERMINAL")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.white.opacity(0.25))
+                        .tracking(1.2)
+                    Spacer()
+                    Text(session.project)
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.12))
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(Color(hex: "#0a0a12"))
+
+            if terminalExpanded {
+                terminalContent
+                    .frame(height: 280)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+        )
+        .cornerRadius(6)
+    }
+
+    @ViewBuilder
+    private var terminalContent: some View {
+        if let ssPath = session.screenshot, FileManager.default.fileExists(atPath: ssPath) {
+            let _ = vm.screenshotTick
+            if let nsImage = NSImage(contentsOfFile: ssPath) {
+                GeometryReader { geo in
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
+                }
+                .id("sidebar-ss-\(session.sessionId)-\(vm.screenshotTick)")
+                .background(Color.black)
+            }
+        } else {
+            let cleaned = session.cleanLastLines
+                .components(separatedBy: "\n")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty && $0 != ">" }
+                .suffix(40)
+                .joined(separator: "\n")
+            ScrollView(.vertical, showsIndicators: false) {
+                Text(cleaned.isEmpty ? "No output captured" : cleaned)
+                    .font(.system(size: 11, weight: .regular, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.65))
+                    .lineSpacing(3)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+            }
+            .background(Color(hex: "#06060c"))
         }
     }
+
+    // MARK: - Details (collapsed by default)
+
+    private var detailsDisclosure: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) { detailsExpanded.toggle() }
+            }) {
+                HStack(spacing: 6) {
+                    Image(systemName: detailsExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.25))
+                        .frame(width: 12)
+                    Text("DETAILS")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.white.opacity(0.25))
+                        .tracking(1.2)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+
+            if detailsExpanded {
+                VStack(alignment: .leading, spacing: 3) {
+                    MetaRow(key: "path", value: session.path)
+                    MetaRow(key: "branch", value: session.branch)
+                    MetaRow(key: "status", value: session.status)
+                    if !session.goal.isEmpty {
+                        MetaRow(key: "goal", value: session.goal)
+                    }
+                    if !session.progressLabel.isEmpty {
+                        MetaRow(key: "progr…", value: session.progressLabel)
+                    }
+                    HStack(spacing: 4) {
+                        Text("preview")
+                            .font(.system(size: 10.5, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.22))
+                            .frame(width: 44, alignment: .leading)
+                        Button(action: {
+                            if let url = URL(string: session.portlessURL) {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }) {
+                            Text(session.portlessURL)
+                                .font(.system(size: 10.5, design: .monospaced))
+                                .foregroundColor(Color(hex: "#00d4ff").opacity(0.7))
+                                .underline()
+                                .lineLimit(1)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.bottom, 8)
+                .transition(.opacity)
+            }
+        }
+        .background(Color.white.opacity(0.02))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+        )
+        .cornerRadius(6)
+    }
+
+    // MARK: - Pinned action footer
+
+    private var actionFooter: some View {
+        HStack(spacing: 8) {
+            Button("✕  Deny") {
+                vm.deny(session)
+                vm.selectSession(nil)
+            }
+            .buttonStyle(SidebarDenyStyle())
+
+            Button("✓  Approve") {
+                vm.approve(session)
+                vm.selectSession(nil)
+            }
+            .buttonStyle(SidebarApproveStyle())
+        }
+        .padding(16)
+    }
 }
+
+// MARK: - Shared helpers
 
 struct MetaRow: View {
     let key: String
@@ -392,26 +426,6 @@ struct MetaRow: View {
                 .foregroundColor(.white.opacity(0.4))
                 .lineLimit(2)
         }
-    }
-}
-
-struct ConfidenceBar: View {
-    let value: Double
-    var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.08)).frame(height: 4)
-                Capsule()
-                    .fill(barColor)
-                    .frame(width: geo.size.width * value, height: 4)
-            }
-        }
-        .frame(height: 4)
-    }
-    private var barColor: Color {
-        if value >= 0.8 { return Color(hex: "#34d399") }
-        if value >= 0.5 { return Color(hex: "#fbbf24") }
-        return Color(hex: "#ff6040")
     }
 }
 
@@ -453,8 +467,6 @@ struct SidebarDenyStyle: ButtonStyle {
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
-
-// MARK: - View extension
 
 extension View {
     func flexibleWidth() -> some View {
