@@ -2,83 +2,54 @@
 
 Native macOS menubar app for supervising 20+ Claude Code sessions across iTerm2 windows.
 
+> **Status:** the Swift app exists in this repo; the backing daemon it was designed to talk to was **never deployed** (`~/.claude-fleet/` and the launchd plist do not exist). Without the daemon the app has no data source. The full daemon plan is archived at `docs/archive/fleet-daemon-plan.md`.
+
+## Design System
+**Read `STYLEGUIDE.md` before any UI work.** Design tokens (colors, glass card values) live there.
+
 ## Stack
 - Swift 5.9 / SwiftUI + AppKit
 - macOS 14.0+
 - Build tool: xcodegen → `.xcodeproj` → Xcode
-- Python 3 (daemon, iTerm2 API)
 
 ## Dev Commands
 ```bash
 cd ~/projects/claude-fleet
 xcodegen generate          # regenerate .xcodeproj from project.yml
 open ClaudeFleet.xcodeproj # open in Xcode, then ⌘B to build
-
-# Daemon control
-launchctl start com.wiking.claude-fleet   # start daemon
-launchctl stop com.wiking.claude-fleet    # stop daemon
-tail -f ~/.claude-fleet/daemon.log        # live daemon logs
-python3 ~/.claude-fleet/fleet.py status  # current state
-python3 ~/.claude-fleet/fleet.py set-role --global --role builder
 ```
 
-## Architecture (v2)
+Daemon control commands (launchctl, `fleet.py`) referenced in older docs belong to the never-deployed daemon — see `docs/archive/fleet-daemon-plan.md`.
+
+## Architecture — what's actually on disk
+
+The repo contains only the Swift app (`ClaudeFleet/`) plus `project.yml` for xcodegen.
 
 ```
-launchd (auto-start on login)
-    └── fleet_daemon.py (persistent async daemon)
-            ├── iTerm2 API — polls every 3s, detects Claude pauses
-            ├── claude CLI — analyzes with Haiku (Max sub, ~1-2s)
-            ├── roles.json — per-session/project AI personalities
-            ├── state.json — atomic writes (Swift reads via FSEvents)
-            └── fleet.sock — Unix socket for Swift commands
-
 ClaudeFleet.app
-    AppDelegate (NSStatusBar + NSPanel + key monitor)
+    ClaudeFleetApp.swift / AppDelegate.swift (NSStatusBar + NSPanel + key monitor)
         └── MainWindowView
-                ├── TopBarView     (logo, mode, global role, scan button)
+                ├── TopBarView          (logo, mode, global role, scan button)
                 ├── SessionsGridView → SessionCardView × N (role badge, approve/deny)
-                ├── DetailSidebarView (selected session detail)
-                └── StatusBarView
-
-State flow:
-  daemon writes state.json → FSEvents → FleetBridge → FleetViewModel → SwiftUI
-  user approve/deny → FleetSocket → fleet.sock → daemon → iTerm2 session
+                ├── DetailSidebarView   (selected session detail)
+                ├── StatusBarView
+                └── Sheets/overlays: ConfigView, RolePickerView, ToastView,
+                    AgentFocusView, HUDElements
 ```
+
+`FleetBridge` (FSEvents watcher) and `FleetSocket` (Unix socket client) expect a daemon writing `~/.claude-fleet/state.json` and listening on `~/.claude-fleet/fleet.sock`. That daemon was never built — see `docs/archive/fleet-daemon-plan.md` for the intended design (including the roles system and its CLI).
 
 ## Key Files
 | File | Purpose |
 |------|---------|
-| `~/.claude-fleet/fleet_daemon.py` | Persistent async daemon — iTerm2 polling, analysis, socket server |
-| `~/.claude-fleet/fleet.py` | Thin CLI wrapper — sends commands to daemon via socket |
-| `~/.claude-fleet/roles.json` | Role config: global, per-project, per-session |
-| `~/Library/LaunchAgents/com.wiking.claude-fleet.plist` | launchd auto-start |
+| `project.yml` | xcodegen project definition |
 | `ClaudeFleet/AppDelegate.swift` | NSStatusBar, NSPanel, keyboard shortcuts (Enter/Backspace/Cmd+Enter) |
 | `ClaudeFleet/Models/FleetModels.swift` | FleetSession, FleetState, FleetMode, FleetRole |
 | `ClaudeFleet/ViewModels/FleetViewModel.swift` | All @Published state, role methods, notifications |
-| `ClaudeFleet/Services/FleetBridge.swift` | FSEvents watcher + state.json reader (read-only) |
-| `ClaudeFleet/Services/FleetSocket.swift` | Unix socket client — approve/deny/scan/setRole commands |
+| `ClaudeFleet/ViewModels/ConfigViewModel.swift` | Config sheet state |
+| `ClaudeFleet/Services/FleetBridge.swift` | FSEvents watcher + state.json reader (read-only; no daemon writes it) |
+| `ClaudeFleet/Services/FleetSocket.swift` | Unix socket client — approve/deny/scan/setRole commands (no daemon listens) |
 | `ClaudeFleet/Views/RolePickerView.swift` | Per-session role picker sheet |
-
-## Roles System
-Six built-in roles control how Haiku analyzes each session:
-
-| Role | Behavior | Auto-threshold |
-|------|----------|---------------|
-| `builder` | Keep implementing, approve most things | 0.70 |
-| `yeoman` | Say yes to everything non-destructive | 0.50 |
-| `cautious` | Conservative, surface more for review | 0.88 |
-| `reviewer` | Flag completed work as QA | 0.80 |
-| `shipper` | Aggressively approve build/deploy steps | 0.65 |
-| `scout` | Never auto-respond, observe only | never |
-
-Set via UI (role pill on session card) or CLI:
-```bash
-python3 ~/.claude-fleet/fleet.py set-role --global --role builder
-python3 ~/.claude-fleet/fleet.py set-role --project myapp --role cautious
-```
-
-Custom roles: add to `~/.claude-fleet/roles.json` under `"custom"`.
 
 ## Keyboard Shortcuts
 - `Enter` — approve selected session
@@ -86,19 +57,11 @@ Custom roles: add to `~/.claude-fleet/roles.json` under `"custom"`.
 - `Cmd+Enter` — approve all safe sessions
 - `⇧⌥Space` — toggle panel from anywhere
 
-## Design Tokens
-- Background: `#070c1a` (midnight navy)
-- Accent: `#00d4ff` (cyan)
-- Risk: `#ff6040` (red-orange)
-- Active: `#34d399` (green)
-- Glass cards: `rgba(255,255,255,0.035)` bg, `rgba(255,255,255,0.07)` border
-
 ## Environment Variables
-None — uses hardcoded `~/.claude-fleet/` paths
+None — `FleetBridge`/`FleetSocket` hardcode `~/.claude-fleet/` paths (directory does not exist; daemon never deployed).
 
 ## Active Integrations
-- iTerm2 Python API (`pip3 install iterm2`)
-- Claude CLI (Max subscription, Haiku model)
-- FSEvents (file system watcher)
+- FSEvents (file system watcher, in FleetBridge)
 - UserNotifications (OS alerts on new paused sessions)
-- launchd (daemon auto-start)
+
+Daemon-side integrations (iTerm2 Python API, Claude CLI, launchd) were part of the never-deployed plan — see `docs/archive/fleet-daemon-plan.md`.
