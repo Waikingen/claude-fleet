@@ -1,5 +1,7 @@
 # Claude Fleet
 
+> **SUPERSEDED (2026-10-16):** active development is in ~/Projects/amanta-code (the fleet surface) and ~/Projects/agent-hud (the agent engine). This was one of many attempts at "one window that shows every session". Read-only reference — do not build, ship, or take decisions from here.
+
 Native macOS menubar app for supervising 20+ Claude Code sessions across iTerm2 windows.
 
 > **Status:** the Swift app exists in this repo; the backing daemon it was designed to talk to was **never deployed** (`~/.claude-fleet/` and the launchd plist do not exist). Without the daemon the app has no data source. The full daemon plan is archived at `docs/archive/fleet-daemon-plan.md`.
